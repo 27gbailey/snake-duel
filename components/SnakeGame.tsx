@@ -16,14 +16,15 @@ import {
   getCanvasSize,
   getCellSize,
 } from "@/lib/game/renderer";
-import type { GameState } from "@/types/game";
+import type { GameMode, GameState } from "@/types/game";
 import Scoreboard from "./Scoreboard";
 
 export default function SnakeGame() {
+  const [mode, setMode] = useState<GameMode>("duel");
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const gameStateRef = useRef<GameState>(createInitialGameState());
-  const [gameState, setGameState] = useState<GameState>(createInitialGameState());
+  const gameStateRef = useRef<GameState>(createInitialGameState("duel"));
+  const [gameState, setGameState] = useState<GameState>(createInitialGameState("duel"));
   const [cellSize, setCellSize] = useState(16);
 
   const syncState = useCallback((state: GameState) => {
@@ -32,9 +33,16 @@ export default function SnakeGame() {
   }, []);
 
   const handleRestart = useCallback(() => {
-    const fresh = createInitialGameState();
-    syncState(fresh);
-  }, [syncState]);
+    syncState(createInitialGameState(mode));
+  }, [mode, syncState]);
+
+  const handleModeChange = useCallback(
+    (nextMode: GameMode) => {
+      setMode(nextMode);
+      syncState(createInitialGameState(nextMode));
+    },
+    [syncState],
+  );
 
   useEffect(() => {
     const resize = () => {
@@ -52,18 +60,22 @@ export default function SnakeGame() {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       const key = event.key;
-      let state = gameStateRef.current;
+      const state = gameStateRef.current;
+      let nextState = state;
 
       if (PLAYER_1_KEYS[key]) {
         event.preventDefault();
-        state = setPlayerDirection(state, 1, PLAYER_1_KEYS[key]);
-      } else if (PLAYER_2_KEYS[key]) {
+        nextState = setPlayerDirection(state, 1, PLAYER_1_KEYS[key]);
+      } else if (state.mode === "duel" && PLAYER_2_KEYS[key]) {
         event.preventDefault();
-        state = setPlayerDirection(state, 2, PLAYER_2_KEYS[key]);
+        nextState = setPlayerDirection(state, 2, PLAYER_2_KEYS[key]);
+      } else if (state.mode === "solo" && PLAYER_2_KEYS[key]) {
+        event.preventDefault();
+        nextState = setPlayerDirection(state, 1, PLAYER_2_KEYS[key]);
       }
 
-      if (state !== gameStateRef.current) {
-        syncState(state);
+      if (nextState !== state) {
+        syncState(nextState);
       }
     };
 
@@ -102,6 +114,7 @@ export default function SnakeGame() {
       <Scoreboard
         gameState={gameState}
         onRestart={handleRestart}
+        onModeChange={handleModeChange}
       />
 
       <div ref={containerRef} className="game__canvas-wrap">
@@ -110,13 +123,25 @@ export default function SnakeGame() {
           width={width}
           height={height}
           className="game__canvas"
-          aria-label="Two-player snake game board"
+          aria-label={
+            gameState.mode === "solo"
+              ? "Single-player snake game board"
+              : "Two-player snake game board"
+          }
         />
       </div>
 
       <p className="game__hint">
-        Player 1: <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>
-        · Player 2: Arrow keys
+        {gameState.mode === "solo" ? (
+          <>
+            Controls: <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or Arrow keys
+          </>
+        ) : (
+          <>
+            Player 1: <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>
+            · Player 2: Arrow keys
+          </>
+        )}
       </p>
     </div>
   );

@@ -11,11 +11,35 @@ import {
 } from "@/lib/game/direction";
 import type {
   Direction,
+  GameMode,
   GameState,
   PlayerId,
   PlayerState,
   Position,
 } from "@/types/game";
+
+function createInactivePlayer(): PlayerState {
+  return {
+    snake: [],
+    direction: "RIGHT",
+    nextDirection: "RIGHT",
+    score: 0,
+    alive: false,
+    endReason: null,
+  };
+}
+
+function getActivePlayerIds(mode: GameMode): PlayerId[] {
+  return mode === "solo" ? [1] : [1, 2];
+}
+
+function getStartMessage(mode: GameMode): string {
+  if (mode === "solo") {
+    return "Solo mode — use WASD or Arrow keys";
+  }
+
+  return "Player 1: WASD · Player 2: Arrow keys";
+}
 
 function createInitialSnake(
   startX: number,
@@ -59,25 +83,28 @@ function createPlayer(
   };
 }
 
-export function createInitialGameState(): GameState {
-  const midY = Math.floor(GRID_SIZE / 2);
+export function createInitialGameState(mode: GameMode = "duel"): GameState {
+  const mid = Math.floor(GRID_SIZE / 2);
+
+  const players =
+    mode === "solo"
+      ? {
+          1: createPlayer(mid, mid, "RIGHT"),
+          2: createInactivePlayer(),
+        }
+      : {
+          1: createPlayer(4, mid, "RIGHT"),
+          2: createPlayer(GRID_SIZE - 5, mid, "LEFT"),
+        };
 
   return {
     gridSize: GRID_SIZE,
-    players: {
-      1: createPlayer(4, midY, "RIGHT"),
-      2: createPlayer(GRID_SIZE - 5, midY, "LEFT"),
-    },
-    food: spawnFood(
-      {
-        1: createPlayer(4, midY, "RIGHT"),
-        2: createPlayer(GRID_SIZE - 5, midY, "LEFT"),
-      },
-      GRID_SIZE,
-    ),
+    mode,
+    players,
+    food: spawnFood(players, GRID_SIZE),
     status: "playing",
     winner: null,
-    message: "Player 1: WASD · Player 2: Arrow keys",
+    message: getStartMessage(mode),
   };
 }
 
@@ -88,6 +115,10 @@ export function spawnFood(
   const occupied = new Set<string>();
 
   for (const player of Object.values(players)) {
+    if (player.snake.length === 0) {
+      continue;
+    }
+
     for (const segment of player.snake) {
       occupied.add(`${segment.x},${segment.y}`);
     }
@@ -141,7 +172,22 @@ export function setPlayerDirection(
 function buildEndMessage(
   winner: PlayerId | "draw" | null,
   players: Record<PlayerId, PlayerState>,
+  mode: GameMode,
 ): string {
+  if (mode === "solo") {
+    const player = players[1];
+    const reason =
+      player.endReason === "wall"
+        ? "Hit the wall!"
+        : player.endReason === "self"
+          ? "Bit yourself!"
+          : "";
+
+    return reason
+      ? `Game over! Score: ${player.score} — ${reason}`
+      : `Game over! Score: ${player.score}`;
+  }
+
   if (winner === "draw") {
     const p1 = players[1].endReason;
     const p2 = players[2].endReason;
@@ -165,6 +211,15 @@ function buildEndMessage(
 }
 
 function finalizeGame(state: GameState): GameState {
+  if (state.mode === "solo") {
+    return {
+      ...state,
+      status: "ended",
+      winner: null,
+      message: buildEndMessage(null, state.players, state.mode),
+    };
+  }
+
   const alive = getAlivePlayers({
     1: state.players[1].alive,
     2: state.players[2].alive,
@@ -182,7 +237,7 @@ function finalizeGame(state: GameState): GameState {
     ...state,
     status: "ended",
     winner,
-    message: buildEndMessage(winner, state.players),
+    message: buildEndMessage(winner, state.players, state.mode),
   };
 }
 
@@ -191,15 +246,16 @@ export function advanceGame(state: GameState): GameState {
     return state;
   }
 
+  const activeIds = getActivePlayerIds(state.mode);
   const players = { ...state.players };
   const nextHeads: Record<PlayerId, Position> = { 1: { x: 0, y: 0 }, 2: { x: 0, y: 0 } };
   const ateFood: Record<PlayerId, boolean> = { 1: false, 2: false };
 
-  for (const id of [1, 2] as PlayerId[]) {
+  for (const id of activeIds) {
     const player = players[id];
 
     if (!player.alive) {
-      nextHeads[id] = player.snake[0];
+      nextHeads[id] = player.snake[0] ?? { x: 0, y: 0 };
       continue;
     }
 
@@ -207,10 +263,10 @@ export function advanceGame(state: GameState): GameState {
     const head = player.snake[0];
     const nextHead = getNextHead(head, direction);
     nextHeads[id] = nextHead;
-
   }
 
   const headToHead =
+    state.mode === "duel" &&
     players[1].alive &&
     players[2].alive &&
     isHeadToHead(nextHeads[1], nextHeads[2]);
@@ -233,7 +289,7 @@ export function advanceGame(state: GameState): GameState {
     });
   }
 
-  for (const id of [1, 2] as PlayerId[]) {
+  for (const id of activeIds) {
     const player = players[id];
 
     if (!player.alive) {
@@ -242,8 +298,8 @@ export function advanceGame(state: GameState): GameState {
 
     const direction = player.nextDirection;
     const body = player.snake;
-    const otherId: PlayerId = id === 1 ? 2 : 1;
-    const otherSnake = players[otherId].snake;
+    const otherSnake =
+      state.mode === "duel" ? players[id === 1 ? 2 : 1].snake : [];
     const nextHead = nextHeads[id];
 
     const endReason = detectCollision(
@@ -284,7 +340,14 @@ export function advanceGame(state: GameState): GameState {
     2: players[2].alive,
   });
 
-  if (aliveAfterMove.length < 2) {
+  if (state.mode === "solo" && !players[1].alive) {
+    return finalizeGame({
+      ...state,
+      players,
+    });
+  }
+
+  if (state.mode === "duel" && aliveAfterMove.length < 2) {
     return finalizeGame({
       ...state,
       players,
@@ -292,7 +355,7 @@ export function advanceGame(state: GameState): GameState {
   }
 
   let food = state.food;
-  if (ateFood[1] || ateFood[2]) {
+  if (activeIds.some((id) => ateFood[id])) {
     food = spawnFood(players, state.gridSize);
   }
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")" && pwd)"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 export PATH="$ROOT/.tools/node-v22.16.0-darwin-x64/bin:${PATH:-}"
 
 if ! command -v node >/dev/null 2>&1; then
@@ -24,6 +24,7 @@ OWNER="$(gh api user -q .login)"
 if ! gh repo view "$OWNER/$REPO_NAME" >/dev/null 2>&1; then
   gh repo create "$REPO_NAME" --public --source=. --remote=origin --push
 else
+  git remote get-url origin >/dev/null 2>&1 || git remote add origin "git@github.com:$OWNER/$REPO_NAME.git"
   git push -u origin main
 fi
 

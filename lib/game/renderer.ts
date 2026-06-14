@@ -21,7 +21,10 @@ export function drawGame(
   drawGrid(ctx, state.gridSize, cellSize);
   drawFood(ctx, state.food, cellSize);
   drawSnake(ctx, state.players[1], 1, cellSize);
-  drawSnake(ctx, state.players[2], 2, cellSize);
+
+  if (state.mode === "duel") {
+    drawSnake(ctx, state.players[2], 2, cellSize);
+  }
 }
 
 function drawGrid(
@@ -68,6 +71,10 @@ function drawSnake(
   playerId: PlayerId,
   cellSize: number,
 ): void {
+  if (player.snake.length === 0) {
+    return;
+  }
+
   const colors = PLAYER_COLORS[playerId];
   const padding = cellSize * 0.08;
 

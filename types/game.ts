@@ -1,5 +1,7 @@
 export type Direction = "UP" | "DOWN" | "LEFT" | "RIGHT";
 
+export type GameMode = "solo" | "duel";
+
 export type Position = {
   x: number;
   y: number;
@@ -27,6 +29,7 @@ export type PlayerState = {
 
 export type GameState = {
   gridSize: number;
+  mode: GameMode;
   players: Record<PlayerId, PlayerState>;
   food: Position;
   status: GameStatus;
