@@ -76,6 +76,7 @@ export const BURST_BULLET_SPEED = 3;
 export const BEAM_TTL = 4;
 export const BEAM_MAX_LENGTH = 5;
 export const FOOD_COUNT = 20;
+export const ENEMY_EAT_SCORE = 3;
 
 export const PLAYER_1_KEYS: Record<string, "UP" | "DOWN" | "LEFT" | "RIGHT"> = {
   w: "UP",

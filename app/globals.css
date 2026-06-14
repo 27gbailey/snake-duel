@@ -82,8 +82,17 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 1.5rem;
+  gap: 1rem;
   width: 100%;
+  flex-wrap: wrap;
+}
+
+.scoreboard__team {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-left: 0.75rem;
+  border-left: 1px solid var(--border);
 }
 
 .scoreboard__mode {

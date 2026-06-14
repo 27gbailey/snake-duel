@@ -385,6 +385,35 @@ export function createInitialEnemies(
   return enemies;
 }
 
+export function findEnemyAt(enemies: Enemy[], position: Position): number {
+  return enemies.findIndex((enemy) => positionsEqual(enemy.position, position));
+}
+
+export function spawnReplacementEnemy(
+  players: Record<PlayerId, PlayerState>,
+  mode: GameMode,
+  gridSize: number,
+  enemies: Enemy[],
+  nextId: number,
+): { enemy: Enemy; nextEnemyId: number } {
+  const kind = ENEMY_KINDS[Math.floor(Math.random() * ENEMY_KINDS.length)];
+  const snakePositions = getSnakePositions(players, mode);
+  const position = pickRandomSpawn(snakePositions, enemies, gridSize, nextId);
+  const direction = ENEMY_DIRECTIONS[Math.floor(Math.random() * ENEMY_DIRECTIONS.length)];
+
+  return {
+    enemy: {
+      id: nextId,
+      kind,
+      position,
+      direction,
+      moveCooldown: ENEMY_STATS[kind].moveInterval,
+      attackCooldown: ENEMY_STATS[kind].attackInterval,
+    },
+    nextEnemyId: nextId + 1,
+  };
+}
+
 export function advanceEnemies(
   enemies: Enemy[],
   players: Record<PlayerId, PlayerState>,
@@ -598,10 +627,6 @@ export function getBulletHits(
 
 export function removeHitBullets(bullets: Bullet[], hitBulletIds: Set<number>): Bullet[] {
   return bullets.filter((bullet) => !hitBulletIds.has(bullet.id));
-}
-
-export function getEnemyCollisionPlayer(head: Position, enemies: Enemy[]): boolean {
-  return isEnemyAt(enemies, head);
 }
 
 export function getOccupiedCells(

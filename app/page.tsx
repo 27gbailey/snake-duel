@@ -6,7 +6,7 @@ export default function Home() {
       <div className="page__header">
         <h1 className="page__title">Snake Duel</h1>
         <p className="page__subtitle">
-          Two-player snake on a shared keyboard — last snake standing wins.
+          Eat fruit and turrets, dodge bullets — play solo or co-op on one keyboard.
         </p>
       </div>
       <SnakeGame />

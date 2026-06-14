@@ -36,7 +36,7 @@ export function drawGame(
 
   drawSnake(ctx, state.players[1], 1, cellSize);
 
-  if (state.mode === "duel") {
+  if (state.mode === "coop") {
     drawSnake(ctx, state.players[2], 2, cellSize);
   }
 }

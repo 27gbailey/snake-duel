@@ -13,6 +13,7 @@ export default function Scoreboard({
   onModeChange,
 }: ScoreboardProps) {
   const { players, status, message, mode, countdown } = gameState;
+  const teamScore = players[1].score + players[2].score;
 
   return (
     <header className="scoreboard">
@@ -27,11 +28,11 @@ export default function Scoreboard({
         </button>
         <button
           type="button"
-          className={`scoreboard__mode-btn${mode === "duel" ? " scoreboard__mode-btn--active" : ""}`}
-          onClick={() => onModeChange("duel")}
-          aria-pressed={mode === "duel"}
+          className={`scoreboard__mode-btn${mode === "coop" ? " scoreboard__mode-btn--active" : ""}`}
+          onClick={() => onModeChange("coop")}
+          aria-pressed={mode === "coop"}
         >
-          2 Players
+          2 Player Co-op
         </button>
       </div>
 
@@ -51,25 +52,30 @@ export default function Scoreboard({
               className="scoreboard__dot"
               style={{ backgroundColor: PLAYER_COLORS[1].head }}
             />
-            <span className="scoreboard__label">Player 1</span>
+            <span className="scoreboard__label">P1</span>
             <span className="scoreboard__score">{players[1].score}</span>
             {!players[1].alive && status === "ended" && (
               <span className="scoreboard__status">Out</span>
             )}
           </div>
 
-          <div className="scoreboard__divider">vs</div>
+          <div className="scoreboard__divider">+</div>
 
           <div className="scoreboard__player">
             <span
               className="scoreboard__dot"
               style={{ backgroundColor: PLAYER_COLORS[2].head }}
             />
-            <span className="scoreboard__label">Player 2</span>
+            <span className="scoreboard__label">P2</span>
             <span className="scoreboard__score">{players[2].score}</span>
             {!players[2].alive && status === "ended" && (
               <span className="scoreboard__status">Out</span>
             )}
+          </div>
+
+          <div className="scoreboard__team">
+            <span className="scoreboard__label">Team</span>
+            <span className="scoreboard__score">{teamScore}</span>
           </div>
         </div>
       )}

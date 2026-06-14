@@ -21,11 +21,11 @@ import type { GameMode, GameState } from "@/types/game";
 import Scoreboard from "./Scoreboard";
 
 export default function SnakeGame() {
-  const [mode, setMode] = useState<GameMode>("duel");
+  const [mode, setMode] = useState<GameMode>("coop");
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const gameStateRef = useRef<GameState>(createInitialGameState("duel"));
-  const [gameState, setGameState] = useState<GameState>(createInitialGameState("duel"));
+  const gameStateRef = useRef<GameState>(createInitialGameState("coop"));
+  const [gameState, setGameState] = useState<GameState>(createInitialGameState("coop"));
   const [cellSize, setCellSize] = useState(16);
 
   const syncState = useCallback((state: GameState) => {
@@ -67,7 +67,7 @@ export default function SnakeGame() {
       if (PLAYER_1_KEYS[key]) {
         event.preventDefault();
         nextState = setPlayerDirection(state, 1, PLAYER_1_KEYS[key]);
-      } else if (state.mode === "duel" && PLAYER_2_KEYS[key]) {
+      } else if (state.mode === "coop" && PLAYER_2_KEYS[key]) {
         event.preventDefault();
         nextState = setPlayerDirection(state, 2, PLAYER_2_KEYS[key]);
       } else if (state.mode === "solo" && PLAYER_2_KEYS[key]) {
@@ -153,7 +153,7 @@ export default function SnakeGame() {
           aria-label={
             gameState.mode === "solo"
               ? "Single-player snake game board"
-              : "Two-player snake game board"
+              : "Co-op snake game board"
           }
         />
         {gameState.status === "countdown" && gameState.countdown > 0 && (
@@ -167,12 +167,12 @@ export default function SnakeGame() {
         {gameState.mode === "solo" ? (
           <>
             Controls: <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or Arrow keys
-            · Enemies move and use 4 attack types
+            · Eat turrets for +3 points
           </>
         ) : (
           <>
-            Player 1: <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>
-            · Player 2: Arrow keys · Dodge moving enemies
+            P1: <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>
+            · P2: Arrow keys · Co-op — eat turrets together (+3)
           </>
         )}
       </p>

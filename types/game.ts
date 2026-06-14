@@ -1,6 +1,6 @@
 export type Direction = "UP" | "DOWN" | "LEFT" | "RIGHT";
 
-export type GameMode = "solo" | "duel";
+export type GameMode = "solo" | "coop";
 
 export type Position = {
   x: number;
@@ -60,6 +60,7 @@ export type GameState = {
   bullets: Bullet[];
   tick: number;
   nextBulletId: number;
+  nextEnemyId: number;
   status: GameStatus;
   countdown: number;
   winner: PlayerId | "draw" | null;

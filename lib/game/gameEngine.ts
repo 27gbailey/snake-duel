@@ -1,18 +1,24 @@
-import { GRID_SIZE, FOOD_COUNT, COUNTDOWN_SECONDS } from "@/lib/game/constants";
+import {
+  COUNTDOWN_SECONDS,
+  ENEMY_COUNT,
+  ENEMY_EAT_SCORE,
+  FOOD_COUNT,
+  GRID_SIZE,
+} from "@/lib/game/constants";
 import {
   detectCollision,
   getAlivePlayers,
-  isHeadToHead,
 } from "@/lib/game/collision";
 import {
   advanceBullets,
   advanceEnemies,
   createInitialEnemies,
+  findEnemyAt,
   fireEnemyAttacks,
   getBulletHits,
-  getEnemyCollisionPlayer,
   getOccupiedCells,
   removeHitBullets,
+  spawnReplacementEnemy,
 } from "@/lib/game/enemies";
 import {
   getNextHead,
@@ -43,12 +49,16 @@ function getActivePlayerIds(mode: GameMode): PlayerId[] {
   return mode === "solo" ? [1] : [1, 2];
 }
 
+function isCoop(mode: GameMode): boolean {
+  return mode === "coop";
+}
+
 function getStartMessage(mode: GameMode): string {
   if (mode === "solo") {
-    return "Solo — dodge moving enemies: shots, spreads, bursts & beams";
+    return "Solo — eat fruit and turrets to score";
   }
 
-  return "Dodge hunters, patrollers, strikers & wardens";
+  return "Co-op — work together, eat turrets for bonus points";
 }
 
 function createInitialSnake(
@@ -93,7 +103,7 @@ function createPlayer(
   };
 }
 
-export function createInitialGameState(mode: GameMode = "duel"): GameState {
+export function createInitialGameState(mode: GameMode = "coop"): GameState {
   const mid = Math.floor(GRID_SIZE / 2);
 
   const players =
@@ -118,6 +128,7 @@ export function createInitialGameState(mode: GameMode = "duel"): GameState {
     bullets: [],
     tick: 0,
     nextBulletId: 0,
+    nextEnemyId: ENEMY_COUNT,
     status: "countdown",
     countdown: COUNTDOWN_SECONDS,
     winner: null,
@@ -222,7 +233,6 @@ export function setPlayerDirection(
 }
 
 function buildEndMessage(
-  winner: PlayerId | "draw" | null,
   players: Record<PlayerId, PlayerState>,
   mode: GameMode,
 ): string {
@@ -235,65 +245,28 @@ function buildEndMessage(
           ? "Bit yourself!"
           : player.endReason === "bullet"
             ? "Hit by a bullet!"
-            : player.endReason === "enemy"
-              ? "Ran into a turret!"
-              : "";
+            : "";
 
     return reason
       ? `Game over! Score: ${player.score} — ${reason}`
       : `Game over! Score: ${player.score}`;
   }
 
-  if (winner === "draw") {
-    const p1 = players[1].endReason;
-    const p2 = players[2].endReason;
+  const teamScore = players[1].score + players[2].score;
 
-    if (p1 === "head-to-head" && p2 === "head-to-head") {
-      return "Head-to-head draw! Both snakes collide.";
-    }
-
-    return "Draw! Both players are out.";
+  if (players[1].endReason === "bullet" || players[2].endReason === "bullet") {
+    return `Team eliminated! Team score: ${teamScore}`;
   }
 
-  if (winner === 1) {
-    return `Player 1 wins! Score: ${players[1].score}`;
-  }
-
-  if (winner === 2) {
-    return `Player 2 wins! Score: ${players[2].score}`;
-  }
-
-  return "";
+  return `Game over! Team score: ${teamScore}`;
 }
 
 function finalizeGame(state: GameState): GameState {
-  if (state.mode === "solo") {
-    return {
-      ...state,
-      status: "ended",
-      winner: null,
-      message: buildEndMessage(null, state.players, state.mode),
-    };
-  }
-
-  const alive = getAlivePlayers({
-    1: state.players[1].alive,
-    2: state.players[2].alive,
-  });
-
-  let winner: PlayerId | "draw" | null = null;
-
-  if (alive.length === 0) {
-    winner = "draw";
-  } else if (alive.length === 1) {
-    winner = alive[0];
-  }
-
   return {
     ...state,
     status: "ended",
-    winner,
-    message: buildEndMessage(winner, state.players, state.mode),
+    winner: null,
+    message: buildEndMessage(state.players, state.mode),
   };
 }
 
@@ -307,6 +280,7 @@ export function advanceGame(state: GameState): GameState {
   let players = { ...state.players };
 
   let enemies = advanceEnemies(state.enemies, players, state.mode, state.gridSize);
+  let nextEnemyId = state.nextEnemyId;
 
   const attackResult = fireEnemyAttacks(
     enemies,
@@ -346,6 +320,7 @@ export function advanceGame(state: GameState): GameState {
 
   const nextHeads: Record<PlayerId, Position> = { 1: { x: 0, y: 0 }, 2: { x: 0, y: 0 } };
   const ateFood: Record<PlayerId, boolean> = { 1: false, 2: false };
+  const ateEnemy: Record<PlayerId, boolean> = { 1: false, 2: false };
 
   for (const id of activeIds) {
     const player = players[id];
@@ -361,34 +336,6 @@ export function advanceGame(state: GameState): GameState {
     nextHeads[id] = nextHead;
   }
 
-  const headToHead =
-    state.mode === "duel" &&
-    players[1].alive &&
-    players[2].alive &&
-    isHeadToHead(nextHeads[1], nextHeads[2]);
-
-  if (headToHead) {
-    players[1] = {
-      ...players[1],
-      alive: false,
-      endReason: "head-to-head",
-    };
-    players[2] = {
-      ...players[2],
-      alive: false,
-      endReason: "head-to-head",
-    };
-
-    return finalizeGame({
-      ...state,
-      players,
-      enemies,
-      bullets,
-      tick,
-      nextBulletId,
-    });
-  }
-
   for (const id of activeIds) {
     const player = players[id];
 
@@ -398,18 +345,8 @@ export function advanceGame(state: GameState): GameState {
 
     const direction = player.nextDirection;
     const body = player.snake;
-    const otherSnake =
-      state.mode === "duel" ? players[id === 1 ? 2 : 1].snake : [];
+    const otherSnake = isCoop(state.mode) ? [] : players[id === 1 ? 2 : 1].snake;
     const nextHead = nextHeads[id];
-
-    if (getEnemyCollisionPlayer(nextHead, enemies)) {
-      players[id] = {
-        ...player,
-        alive: false,
-        endReason: "enemy",
-      };
-      continue;
-    }
 
     const endReason = detectCollision(
       nextHead,
@@ -427,13 +364,39 @@ export function advanceGame(state: GameState): GameState {
       continue;
     }
 
+    const eatenEnemyIndex = findEnemyAt(enemies, nextHead);
+    const willEatEnemy = eatenEnemyIndex >= 0;
     const eatenFoodIndex = state.food.findIndex((fruit) => positionsEqual(fruit, nextHead));
-    const willEat = eatenFoodIndex >= 0;
-    ateFood[id] = willEat;
+    const willEatFood = eatenFoodIndex >= 0;
+    const willGrow = willEatEnemy || willEatFood;
+
+    ateFood[id] = willEatFood;
+    ateEnemy[id] = willEatEnemy;
+
+    if (willEatEnemy) {
+      const withoutEaten = enemies.filter((_, index) => index !== eatenEnemyIndex);
+      const replacement = spawnReplacementEnemy(
+        players,
+        state.mode,
+        state.gridSize,
+        withoutEaten,
+        nextEnemyId,
+      );
+      enemies = [...withoutEaten, replacement.enemy];
+      nextEnemyId = replacement.nextEnemyId;
+    }
 
     const newSnake = [nextHead, ...body];
-    if (!willEat) {
+    if (!willGrow) {
       newSnake.pop();
+    }
+
+    let scoreGain = 0;
+    if (willEatFood) {
+      scoreGain += 1;
+    }
+    if (willEatEnemy) {
+      scoreGain += ENEMY_EAT_SCORE;
     }
 
     players[id] = {
@@ -441,7 +404,7 @@ export function advanceGame(state: GameState): GameState {
       snake: newSnake,
       direction,
       nextDirection: direction,
-      score: willEat ? player.score + 1 : player.score,
+      score: player.score + scoreGain,
     };
   }
 
@@ -458,10 +421,11 @@ export function advanceGame(state: GameState): GameState {
       bullets,
       tick,
       nextBulletId,
+      nextEnemyId,
     });
   }
 
-  if (state.mode === "duel" && aliveAfterMove.length < 2) {
+  if (isCoop(state.mode) && aliveAfterMove.length === 0) {
     return finalizeGame({
       ...state,
       players,
@@ -469,6 +433,7 @@ export function advanceGame(state: GameState): GameState {
       bullets,
       tick,
       nextBulletId,
+      nextEnemyId,
     });
   }
 
@@ -501,5 +466,6 @@ export function advanceGame(state: GameState): GameState {
     bullets,
     tick,
     nextBulletId,
+    nextEnemyId,
   };
 }
