@@ -135,11 +135,12 @@ export default function SnakeGame() {
         {gameState.mode === "solo" ? (
           <>
             Controls: <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or Arrow keys
+            · Dodge red turrets and yellow bullets
           </>
         ) : (
           <>
             Player 1: <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>
-            · Player 2: Arrow keys
+            · Player 2: Arrow keys · Dodge turrets & bullets
           </>
         )}
       </p>

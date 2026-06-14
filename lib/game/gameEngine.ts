@@ -5,6 +5,15 @@ import {
   isHeadToHead,
 } from "@/lib/game/collision";
 import {
+  advanceBullets,
+  createInitialEnemies,
+  fireEnemyBullets,
+  getBulletHits,
+  getEnemyCollisionPlayer,
+  getOccupiedCells,
+  removeHitBullets,
+} from "@/lib/game/enemies";
+import {
   getNextHead,
   isOppositeDirection,
   positionsEqual,
@@ -35,10 +44,10 @@ function getActivePlayerIds(mode: GameMode): PlayerId[] {
 
 function getStartMessage(mode: GameMode): string {
   if (mode === "solo") {
-    return "Solo mode — use WASD or Arrow keys";
+    return "Solo mode — dodge enemy turrets and bullets";
   }
 
-  return "Player 1: WASD · Player 2: Arrow keys";
+  return "Dodge turrets & bullets · P1: WASD · P2: Arrows";
 }
 
 function createInitialSnake(
@@ -85,6 +94,7 @@ function createPlayer(
 
 export function createInitialGameState(mode: GameMode = "duel"): GameState {
   const mid = Math.floor(GRID_SIZE / 2);
+  const enemies = createInitialEnemies();
 
   const players =
     mode === "solo"
@@ -101,7 +111,11 @@ export function createInitialGameState(mode: GameMode = "duel"): GameState {
     gridSize: GRID_SIZE,
     mode,
     players,
-    food: spawnFood(players, GRID_SIZE),
+    food: spawnFood(players, enemies, GRID_SIZE),
+    enemies,
+    bullets: [],
+    tick: 0,
+    nextBulletId: 0,
     status: "playing",
     winner: null,
     message: getStartMessage(mode),
@@ -110,19 +124,10 @@ export function createInitialGameState(mode: GameMode = "duel"): GameState {
 
 export function spawnFood(
   players: Record<PlayerId, PlayerState>,
+  enemies: GameState["enemies"],
   gridSize: number,
 ): Position {
-  const occupied = new Set<string>();
-
-  for (const player of Object.values(players)) {
-    if (player.snake.length === 0) {
-      continue;
-    }
-
-    for (const segment of player.snake) {
-      occupied.add(`${segment.x},${segment.y}`);
-    }
-  }
+  const occupied = getOccupiedCells(players, enemies);
 
   const freeCells: Position[] = [];
 
@@ -181,7 +186,11 @@ function buildEndMessage(
         ? "Hit the wall!"
         : player.endReason === "self"
           ? "Bit yourself!"
-          : "";
+          : player.endReason === "bullet"
+            ? "Hit by a bullet!"
+            : player.endReason === "enemy"
+              ? "Ran into a turret!"
+              : "";
 
     return reason
       ? `Game over! Score: ${player.score} — ${reason}`
@@ -246,8 +255,41 @@ export function advanceGame(state: GameState): GameState {
     return state;
   }
 
+  const tick = state.tick + 1;
   const activeIds = getActivePlayerIds(state.mode);
-  const players = { ...state.players };
+  let players = { ...state.players };
+
+  const { bullets: newBullets, nextBulletId } = fireEnemyBullets(
+    state.enemies,
+    players,
+    state.mode,
+    tick,
+    state.nextBulletId,
+  );
+
+  let bullets = advanceBullets([...state.bullets, ...newBullets], state.gridSize);
+  const bulletHits = getBulletHits(bullets, players, state.mode);
+
+  if (bulletHits.length > 0) {
+    const hitBulletIds = new Set<number>();
+
+    for (const hit of bulletHits) {
+      hitBulletIds.add(hit.bulletId);
+      if (players[hit.playerId].alive) {
+        players = {
+          ...players,
+          [hit.playerId]: {
+            ...players[hit.playerId],
+            alive: false,
+            endReason: "bullet",
+          },
+        };
+      }
+    }
+
+    bullets = removeHitBullets(bullets, hitBulletIds);
+  }
+
   const nextHeads: Record<PlayerId, Position> = { 1: { x: 0, y: 0 }, 2: { x: 0, y: 0 } };
   const ateFood: Record<PlayerId, boolean> = { 1: false, 2: false };
 
@@ -286,6 +328,9 @@ export function advanceGame(state: GameState): GameState {
     return finalizeGame({
       ...state,
       players,
+      bullets,
+      tick,
+      nextBulletId,
     });
   }
 
@@ -301,6 +346,15 @@ export function advanceGame(state: GameState): GameState {
     const otherSnake =
       state.mode === "duel" ? players[id === 1 ? 2 : 1].snake : [];
     const nextHead = nextHeads[id];
+
+    if (getEnemyCollisionPlayer(nextHead, state.enemies)) {
+      players[id] = {
+        ...player,
+        alive: false,
+        endReason: "enemy",
+      };
+      continue;
+    }
 
     const endReason = detectCollision(
       nextHead,
@@ -344,6 +398,9 @@ export function advanceGame(state: GameState): GameState {
     return finalizeGame({
       ...state,
       players,
+      bullets,
+      tick,
+      nextBulletId,
     });
   }
 
@@ -351,17 +408,23 @@ export function advanceGame(state: GameState): GameState {
     return finalizeGame({
       ...state,
       players,
+      bullets,
+      tick,
+      nextBulletId,
     });
   }
 
   let food = state.food;
   if (activeIds.some((id) => ateFood[id])) {
-    food = spawnFood(players, state.gridSize);
+    food = spawnFood(players, state.enemies, state.gridSize);
   }
 
   return {
     ...state,
     players,
     food,
+    bullets,
+    tick,
+    nextBulletId,
   };
 }

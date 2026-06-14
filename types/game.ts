@@ -16,7 +16,20 @@ export type EndReason =
   | "self"
   | "snake"
   | "head-to-head"
+  | "bullet"
+  | "enemy"
   | null;
+
+export type Enemy = {
+  id: number;
+  position: Position;
+};
+
+export type Bullet = {
+  id: number;
+  position: Position;
+  direction: Direction;
+};
 
 export type PlayerState = {
   snake: Position[];
@@ -32,6 +45,10 @@ export type GameState = {
   mode: GameMode;
   players: Record<PlayerId, PlayerState>;
   food: Position;
+  enemies: Enemy[];
+  bullets: Bullet[];
+  tick: number;
+  nextBulletId: number;
   status: GameStatus;
   winner: PlayerId | "draw" | null;
   message: string;

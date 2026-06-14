@@ -15,8 +15,21 @@ export const PLAYER_COLORS: Record<1 | 2, { head: string; body: string; glow: st
 };
 
 export const FOOD_COLOR = "#f97316";
+export const ENEMY_COLOR = "#ef4444";
+export const ENEMY_GLOW = "rgba(239, 68, 68, 0.45)";
+export const BULLET_COLOR = "#fbbf24";
 export const GRID_LINE_COLOR = "rgba(255, 255, 255, 0.04)";
 export const BACKGROUND_COLOR = "#0f172a";
+
+export const ENEMY_POSITIONS: { x: number; y: number }[] = [
+  { x: 12, y: 12 },
+  { x: 37, y: 12 },
+  { x: 12, y: 37 },
+  { x: 37, y: 37 },
+];
+
+export const ENEMY_FIRE_INTERVAL = 7;
+export const BULLET_SPEED = 2;
 
 export const PLAYER_1_KEYS: Record<string, "UP" | "DOWN" | "LEFT" | "RIGHT"> = {
   w: "UP",
