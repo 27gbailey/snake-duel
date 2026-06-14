@@ -21,7 +21,10 @@ export function drawGame(
   ctx.fillRect(0, 0, width, height);
 
   drawGrid(ctx, state.gridSize, cellSize);
-  drawFood(ctx, state.food, cellSize);
+
+  for (const fruit of state.food) {
+    drawFood(ctx, fruit, cellSize);
+  }
 
   for (const bullet of state.bullets) {
     drawBullet(ctx, bullet, cellSize);

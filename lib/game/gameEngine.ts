@@ -1,4 +1,4 @@
-import { GRID_SIZE } from "@/lib/game/constants";
+import { GRID_SIZE, FOOD_COUNT } from "@/lib/game/constants";
 import {
   detectCollision,
   getAlivePlayers,
@@ -112,7 +112,7 @@ export function createInitialGameState(mode: GameMode = "duel"): GameState {
     gridSize: GRID_SIZE,
     mode,
     players,
-    food: spawnFood(players, enemies, GRID_SIZE),
+    food: spawnFoods(players, enemies, GRID_SIZE, FOOD_COUNT),
     enemies,
     bullets: [],
     tick: 0,
@@ -123,12 +123,17 @@ export function createInitialGameState(mode: GameMode = "duel"): GameState {
   };
 }
 
-export function spawnFood(
+function getFreeCells(
   players: Record<PlayerId, PlayerState>,
   enemies: GameState["enemies"],
   gridSize: number,
-): Position {
+  existingFood: Position[] = [],
+): Position[] {
   const occupied = getOccupiedCells(players, enemies);
+
+  for (const fruit of existingFood) {
+    occupied.add(`${fruit.x},${fruit.y}`);
+  }
 
   const freeCells: Position[] = [];
 
@@ -140,12 +145,38 @@ export function spawnFood(
     }
   }
 
+  return freeCells;
+}
+
+export function spawnFood(
+  players: Record<PlayerId, PlayerState>,
+  enemies: GameState["enemies"],
+  gridSize: number,
+  existingFood: Position[] = [],
+): Position {
+  const freeCells = getFreeCells(players, enemies, gridSize, existingFood);
+
   if (freeCells.length === 0) {
     return { x: 0, y: 0 };
   }
 
   const index = Math.floor(Math.random() * freeCells.length);
   return freeCells[index];
+}
+
+export function spawnFoods(
+  players: Record<PlayerId, PlayerState>,
+  enemies: GameState["enemies"],
+  gridSize: number,
+  count: number,
+): Position[] {
+  const foods: Position[] = [];
+
+  for (let i = 0; i < count; i += 1) {
+    foods.push(spawnFood(players, enemies, gridSize, foods));
+  }
+
+  return foods;
 }
 
 export function setPlayerDirection(
@@ -381,7 +412,8 @@ export function advanceGame(state: GameState): GameState {
       continue;
     }
 
-    const willEat = positionsEqual(nextHead, state.food);
+    const eatenFoodIndex = state.food.findIndex((fruit) => positionsEqual(fruit, nextHead));
+    const willEat = eatenFoodIndex >= 0;
     ateFood[id] = willEat;
 
     const newSnake = [nextHead, ...body];
@@ -426,8 +458,24 @@ export function advanceGame(state: GameState): GameState {
   }
 
   let food = state.food;
+
   if (activeIds.some((id) => ateFood[id])) {
-    food = spawnFood(players, enemies, state.gridSize);
+    const eatenPositions = new Set<string>();
+
+    for (const id of activeIds) {
+      if (!ateFood[id]) {
+        continue;
+      }
+
+      const head = players[id].snake[0];
+      eatenPositions.add(`${head.x},${head.y}`);
+    }
+
+    food = food.filter((fruit) => !eatenPositions.has(`${fruit.x},${fruit.y}`));
+
+    while (food.length < FOOD_COUNT) {
+      food = [...food, spawnFood(players, enemies, state.gridSize, food)];
+    }
   }
 
   return {

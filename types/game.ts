@@ -55,7 +55,7 @@ export type GameState = {
   gridSize: number;
   mode: GameMode;
   players: Record<PlayerId, PlayerState>;
-  food: Position;
+  food: Position[];
   enemies: Enemy[];
   bullets: Bullet[];
   tick: number;

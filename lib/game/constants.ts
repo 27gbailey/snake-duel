@@ -38,26 +38,26 @@ export const ENEMY_STATS: Record<
   { moveInterval: number; attackInterval: number; color: string; glow: string }
 > = {
   hunter: {
-    moveInterval: 3,
-    attackInterval: 6,
+    moveInterval: 1,
+    attackInterval: 14,
     color: "#ef4444",
     glow: "rgba(239, 68, 68, 0.45)",
   },
   patroller: {
-    moveInterval: 2,
-    attackInterval: 10,
+    moveInterval: 1,
+    attackInterval: 18,
     color: "#f97316",
     glow: "rgba(249, 115, 22, 0.45)",
   },
   striker: {
-    moveInterval: 2,
-    attackInterval: 8,
+    moveInterval: 1,
+    attackInterval: 16,
     color: "#a855f7",
     glow: "rgba(168, 85, 247, 0.45)",
   },
   warden: {
-    moveInterval: 4,
-    attackInterval: 14,
+    moveInterval: 2,
+    attackInterval: 22,
     color: "#dc2626",
     glow: "rgba(220, 38, 38, 0.5)",
   },
@@ -72,7 +72,9 @@ export const BULLET_COLORS: Record<AttackKind, string> = {
 
 export const BULLET_SPEED = 2;
 export const BURST_BULLET_SPEED = 3;
-export const BEAM_TTL = 6;
+export const BEAM_TTL = 4;
+export const BEAM_MAX_LENGTH = 5;
+export const FOOD_COUNT = 20;
 
 export const PLAYER_1_KEYS: Record<string, "UP" | "DOWN" | "LEFT" | "RIGHT"> = {
   w: "UP",

@@ -1,4 +1,5 @@
 import {
+  BEAM_MAX_LENGTH,
   BEAM_TTL,
   BULLET_SPEED,
   BURST_BULLET_SPEED,
@@ -246,12 +247,12 @@ function createSpreadAttack(
   bulletId: number,
 ): { bullets: Bullet[]; nextBulletId: number } {
   const direction = getAimDirection(enemy.position, target);
-  const [left, right] = getPerpendicularDirections(direction);
-  const bullets = [direction, left, right].map((dir, index) =>
-    createBullet(bulletId + index, getNextHead(enemy.position, dir), dir, "spread", BULLET_SPEED),
-  );
+  const start = getNextHead(enemy.position, direction);
 
-  return { bullets, nextBulletId: bulletId + bullets.length };
+  return {
+    bullets: [createBullet(bulletId, start, direction, "spread", BULLET_SPEED)],
+    nextBulletId: bulletId + 1,
+  };
 }
 
 function createBurstAttack(
@@ -260,19 +261,12 @@ function createBurstAttack(
   bulletId: number,
 ): { bullets: Bullet[]; nextBulletId: number } {
   const direction = getAimDirection(enemy.position, target);
-  const bullets: Bullet[] = [];
+  const start = getNextHead(enemy.position, direction);
 
-  for (let step = 1; step <= 3; step += 1) {
-    let position = enemy.position;
-    for (let i = 0; i < step; i += 1) {
-      position = getNextHead(position, direction);
-    }
-    bullets.push(
-      createBullet(bulletId + step - 1, position, direction, "burst", BURST_BULLET_SPEED),
-    );
-  }
-
-  return { bullets, nextBulletId: bulletId + bullets.length };
+  return {
+    bullets: [createBullet(bulletId, start, direction, "burst", BURST_BULLET_SPEED)],
+    nextBulletId: bulletId + 1,
+  };
 }
 
 function createBeamAttack(
@@ -285,11 +279,13 @@ function createBeamAttack(
   const bullets: Bullet[] = [];
   let position = getNextHead(enemy.position, direction);
   let id = bulletId;
+  let length = 0;
 
-  while (!isOutOfBounds(position, gridSize)) {
+  while (!isOutOfBounds(position, gridSize) && length < BEAM_MAX_LENGTH) {
     bullets.push(createBullet(id, position, direction, "beam", 0, BEAM_TTL));
     position = getNextHead(position, direction);
     id += 1;
+    length += 1;
   }
 
   return { bullets, nextBulletId: id };
