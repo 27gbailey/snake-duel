@@ -9,7 +9,7 @@ export type Position = {
 
 export type PlayerId = 1 | 2;
 
-export type GameStatus = "playing" | "ended";
+export type GameStatus = "countdown" | "playing" | "ended";
 
 export type EndReason =
   | "wall"
@@ -61,6 +61,7 @@ export type GameState = {
   tick: number;
   nextBulletId: number;
   status: GameStatus;
+  countdown: number;
   winner: PlayerId | "draw" | null;
   message: string;
 };

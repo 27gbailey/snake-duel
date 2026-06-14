@@ -1,4 +1,4 @@
-import { GRID_SIZE, FOOD_COUNT } from "@/lib/game/constants";
+import { GRID_SIZE, FOOD_COUNT, COUNTDOWN_SECONDS } from "@/lib/game/constants";
 import {
   detectCollision,
   getAlivePlayers,
@@ -95,7 +95,6 @@ function createPlayer(
 
 export function createInitialGameState(mode: GameMode = "duel"): GameState {
   const mid = Math.floor(GRID_SIZE / 2);
-  const enemies = createInitialEnemies();
 
   const players =
     mode === "solo"
@@ -108,6 +107,8 @@ export function createInitialGameState(mode: GameMode = "duel"): GameState {
           2: createPlayer(GRID_SIZE - 5, mid, "LEFT"),
         };
 
+  const enemies = createInitialEnemies(players, mode, GRID_SIZE);
+
   return {
     gridSize: GRID_SIZE,
     mode,
@@ -117,9 +118,19 @@ export function createInitialGameState(mode: GameMode = "duel"): GameState {
     bullets: [],
     tick: 0,
     nextBulletId: 0,
-    status: "playing",
+    status: "countdown",
+    countdown: COUNTDOWN_SECONDS,
     winner: null,
-    message: getStartMessage(mode),
+    message: "Get ready...",
+  };
+}
+
+export function beginPlaying(state: GameState): GameState {
+  return {
+    ...state,
+    status: "playing",
+    countdown: 0,
+    message: getStartMessage(state.mode),
   };
 }
 
@@ -184,7 +195,11 @@ export function setPlayerDirection(
   playerId: PlayerId,
   direction: Direction,
 ): GameState {
-  if (state.status !== "playing" || !state.players[playerId].alive) {
+  if (state.status !== "playing" && state.status !== "countdown") {
+    return state;
+  }
+
+  if (!state.players[playerId].alive) {
     return state;
   }
 

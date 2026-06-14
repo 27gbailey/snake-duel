@@ -3,13 +3,16 @@ import {
   BEAM_TTL,
   BULLET_SPEED,
   BURST_BULLET_SPEED,
-  ENEMY_SPAWNS,
+  ENEMY_COUNT,
+  ENEMY_DIRECTIONS,
+  ENEMY_KINDS,
+  ENEMY_MIN_SEPARATION,
+  ENEMY_MIN_SNAKE_DISTANCE,
+  ENEMY_SEPARATION_RADIUS,
   ENEMY_STATS,
 } from "@/lib/game/constants";
 import {
-  flipDirection,
   getNextHead,
-  getPerpendicularDirections,
   isOutOfBounds,
   positionsEqual,
 } from "@/lib/game/direction";
@@ -24,6 +27,168 @@ import type {
   PlayerState,
   Position,
 } from "@/types/game";
+
+const CHASE_CHANCE: Record<EnemyKind, number> = {
+  hunter: 0.35,
+  patroller: 0,
+  striker: 0.4,
+  warden: 0.25,
+};
+
+function manhattanDistance(a: Position, b: Position): number {
+  return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+}
+
+function getSnakePositions(
+  players: Record<PlayerId, PlayerState>,
+  mode: GameMode,
+): Position[] {
+  const activeIds: PlayerId[] = mode === "solo" ? [1] : [1, 2];
+  const positions: Position[] = [];
+
+  for (const id of activeIds) {
+    positions.push(...players[id].snake);
+  }
+
+  return positions;
+}
+
+function shuffle<T>(items: T[]): T[] {
+  const copy = [...items];
+
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+
+  return copy;
+}
+
+function isValidEnemySpawn(
+  position: Position,
+  snakePositions: Position[],
+  placedEnemies: Enemy[],
+  gridSize: number,
+): boolean {
+  if (isOutOfBounds(position, gridSize)) {
+    return false;
+  }
+
+  for (const segment of snakePositions) {
+    if (manhattanDistance(position, segment) < ENEMY_MIN_SNAKE_DISTANCE) {
+      return false;
+    }
+  }
+
+  for (const enemy of placedEnemies) {
+    if (manhattanDistance(position, enemy.position) < ENEMY_MIN_SEPARATION) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function pickRandomSpawn(
+  snakePositions: Position[],
+  placedEnemies: Enemy[],
+  gridSize: number,
+  enemyIndex: number,
+): Position {
+  const maxAttempts = 300;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const candidate = {
+      x: Math.floor(Math.random() * gridSize),
+      y: Math.floor(Math.random() * gridSize),
+    };
+
+    if (isValidEnemySpawn(candidate, snakePositions, placedEnemies, gridSize)) {
+      return candidate;
+    }
+  }
+
+  const margin = 4 + enemyIndex * 3;
+  return {
+    x: Math.min(gridSize - margin, margin + enemyIndex * 5),
+    y: Math.min(gridSize - margin, margin + enemyIndex * 4),
+  };
+}
+
+function getValidMoves(
+  enemy: Enemy,
+  gridSize: number,
+  enemies: Enemy[],
+  players: Record<PlayerId, PlayerState>,
+): { position: Position; direction: Direction }[] {
+  const moves: { position: Position; direction: Direction }[] = [];
+
+  for (const direction of ENEMY_DIRECTIONS) {
+    const position = getNextHead(enemy.position, direction);
+    if (!isBlocked(position, gridSize, enemies, players, enemy.id)) {
+      moves.push({ position, direction });
+    }
+  }
+
+  return moves;
+}
+
+function getSeparationMove(
+  enemy: Enemy,
+  moves: { position: Position; direction: Direction }[],
+  enemies: Enemy[],
+): { position: Position; direction: Direction } | null {
+  let bestMove: { position: Position; direction: Direction } | null = null;
+  let bestDistance = -1;
+
+  for (const move of moves) {
+    let nearestEnemyDistance = Infinity;
+
+    for (const other of enemies) {
+      if (other.id === enemy.id) {
+        continue;
+      }
+
+      const distance = manhattanDistance(move.position, other.position);
+      nearestEnemyDistance = Math.min(nearestEnemyDistance, distance);
+    }
+
+    if (nearestEnemyDistance > bestDistance) {
+      bestDistance = nearestEnemyDistance;
+      bestMove = move;
+    }
+  }
+
+  return bestMove;
+}
+
+function isCrowdedNearTarget(
+  enemy: Enemy,
+  target: Position,
+  enemies: Enemy[],
+): boolean {
+  return enemies.some(
+    (other) =>
+      other.id !== enemy.id &&
+      manhattanDistance(other.position, target) <= ENEMY_SEPARATION_RADIUS,
+  );
+}
+
+function pickWanderMove(
+  enemy: Enemy,
+  moves: { position: Position; direction: Direction }[],
+): { position: Position; direction: Direction } | null {
+  if (moves.length === 0) {
+    return null;
+  }
+
+  const continueForward = moves.find((move) => move.direction === enemy.direction);
+  if (continueForward && Math.random() < 0.55) {
+    return continueForward;
+  }
+
+  return moves[Math.floor(Math.random() * moves.length)];
+}
 
 function getAimDirection(from: Position, to: Position): Direction {
   const dx = to.x - from.x;
@@ -117,6 +282,21 @@ function tryChaseMove(
   return enemy;
 }
 
+function applyMove(
+  enemy: Enemy,
+  move: { position: Position; direction: Direction } | null,
+): Enemy {
+  if (!move) {
+    return enemy;
+  }
+
+  return {
+    ...enemy,
+    position: move.position,
+    direction: move.direction,
+  };
+}
+
 function moveEnemy(
   enemy: Enemy,
   players: Record<PlayerId, PlayerState>,
@@ -131,64 +311,78 @@ function moveEnemy(
     return { ...enemy, moveCooldown };
   }
 
-  let nextEnemy = { ...enemy, moveCooldown: stats.moveInterval };
+  const nextEnemy = { ...enemy, moveCooldown: stats.moveInterval };
   const target = getNearestTarget(enemy, players, mode);
+  const validMoves = getValidMoves(enemy, gridSize, enemies, players);
 
-  switch (enemy.kind) {
-    case "hunter":
-    case "striker":
-      if (target) {
-        nextEnemy = tryChaseMove(nextEnemy, target, gridSize, enemies, players);
-      }
-      break;
+  if (validMoves.length === 0) {
+    return nextEnemy;
+  }
 
-    case "patroller": {
-      const candidate = getNextHead(enemy.position, enemy.direction);
-      if (!isBlocked(candidate, gridSize, enemies, players, enemy.id)) {
-        nextEnemy = { ...nextEnemy, position: candidate };
-      } else {
-        nextEnemy = { ...nextEnemy, direction: flipDirection(enemy.direction) };
-      }
-      break;
+  const nearestEnemyDistance = enemies.reduce((minDistance, other) => {
+    if (other.id === enemy.id) {
+      return minDistance;
     }
 
-    case "warden": {
-      if (target) {
-        nextEnemy = tryChaseMove(nextEnemy, target, gridSize, enemies, players);
-      } else {
-        const candidate = getNextHead(enemy.position, enemy.direction);
-        if (!isBlocked(candidate, gridSize, enemies, players, enemy.id)) {
-          nextEnemy = { ...nextEnemy, position: candidate };
-        } else {
-          const [left, right] = getPerpendicularDirections(enemy.direction);
-          const leftPos = getNextHead(enemy.position, left);
-          const rightPos = getNextHead(enemy.position, right);
+    return Math.min(minDistance, manhattanDistance(enemy.position, other.position));
+  }, Infinity);
 
-          if (!isBlocked(leftPos, gridSize, enemies, players, enemy.id)) {
-            nextEnemy = { ...nextEnemy, position: leftPos, direction: left };
-          } else if (!isBlocked(rightPos, gridSize, enemies, players, enemy.id)) {
-            nextEnemy = { ...nextEnemy, position: rightPos, direction: right };
-          } else {
-            nextEnemy = { ...nextEnemy, direction: flipDirection(enemy.direction) };
-          }
-        }
-      }
-      break;
+  if (nearestEnemyDistance <= ENEMY_SEPARATION_RADIUS) {
+    const separationMove = getSeparationMove(enemy, validMoves, enemies);
+    return applyMove(nextEnemy, separationMove ?? pickWanderMove(enemy, validMoves));
+  }
+
+  const shouldChase =
+    target !== null &&
+    Math.random() < CHASE_CHANCE[enemy.kind] &&
+    !isCrowdedNearTarget(enemy, target, enemies);
+
+  if (shouldChase) {
+    const chased = tryChaseMove(nextEnemy, target, gridSize, enemies, players);
+    if (!positionsEqual(chased.position, enemy.position)) {
+      return chased;
     }
   }
 
-  return nextEnemy;
+  if (enemy.kind === "patroller") {
+    const forward = validMoves.find((move) => move.direction === enemy.direction);
+    if (forward) {
+      return applyMove(nextEnemy, forward);
+    }
+
+    const wander = pickWanderMove(enemy, validMoves);
+    return applyMove(nextEnemy, wander);
+  }
+
+  const wander = pickWanderMove(enemy, validMoves);
+  return applyMove(nextEnemy, wander);
 }
 
-export function createInitialEnemies(): Enemy[] {
-  return ENEMY_SPAWNS.map((spawn, index) => ({
-    id: index,
-    kind: spawn.kind,
-    position: spawn.position,
-    direction: spawn.direction,
-    moveCooldown: ENEMY_STATS[spawn.kind].moveInterval,
-    attackCooldown: ENEMY_STATS[spawn.kind].attackInterval + index,
-  }));
+export function createInitialEnemies(
+  players: Record<PlayerId, PlayerState>,
+  mode: GameMode,
+  gridSize: number,
+): Enemy[] {
+  const snakePositions = getSnakePositions(players, mode);
+  const kinds = shuffle([...ENEMY_KINDS]);
+  const enemies: Enemy[] = [];
+
+  for (let index = 0; index < ENEMY_COUNT; index += 1) {
+    const kind = kinds[index % kinds.length];
+    const position = pickRandomSpawn(snakePositions, enemies, gridSize, index);
+    const direction = ENEMY_DIRECTIONS[Math.floor(Math.random() * ENEMY_DIRECTIONS.length)];
+
+    enemies.push({
+      id: index,
+      kind,
+      position,
+      direction,
+      moveCooldown: ENEMY_STATS[kind].moveInterval + index,
+      attackCooldown: ENEMY_STATS[kind].attackInterval + index * 2,
+    });
+  }
+
+  return enemies;
 }
 
 export function advanceEnemies(

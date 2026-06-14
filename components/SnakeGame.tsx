@@ -8,6 +8,7 @@ import {
 } from "@/lib/game/constants";
 import {
   advanceGame,
+  beginPlaying,
   createInitialGameState,
   setPlayerDirection,
 } from "@/lib/game/gameEngine";
@@ -84,6 +85,32 @@ export default function SnakeGame() {
   }, [syncState]);
 
   useEffect(() => {
+    if (gameState.status !== "countdown") {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      const current = gameStateRef.current;
+      if (current.status !== "countdown") {
+        return;
+      }
+
+      if (current.countdown <= 1) {
+        syncState(beginPlaying(current));
+        return;
+      }
+
+      syncState({
+        ...current,
+        countdown: current.countdown - 1,
+        message: `Starting in ${current.countdown - 1}...`,
+      });
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [gameState.status, syncState]);
+
+  useEffect(() => {
     const interval = setInterval(() => {
       const current = gameStateRef.current;
       if (current.status !== "playing") return;
@@ -129,6 +156,11 @@ export default function SnakeGame() {
               : "Two-player snake game board"
           }
         />
+        {gameState.status === "countdown" && gameState.countdown > 0 && (
+          <div className="game__countdown" aria-live="polite">
+            {gameState.countdown}
+          </div>
+        )}
       </div>
 
       <p className="game__hint">

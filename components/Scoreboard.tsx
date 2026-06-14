@@ -12,7 +12,7 @@ export default function Scoreboard({
   onRestart,
   onModeChange,
 }: ScoreboardProps) {
-  const { players, status, message, mode } = gameState;
+  const { players, status, message, mode, countdown } = gameState;
 
   return (
     <header className="scoreboard">
@@ -74,6 +74,12 @@ export default function Scoreboard({
         </div>
       )}
 
+      {status === "countdown" && (
+        <p className="scoreboard__message scoreboard__countdown">
+          Game starts in {countdown}...
+        </p>
+      )}
+
       {status === "playing" && (
         <p className="scoreboard__message scoreboard__message--hint">{message}</p>
       )}
@@ -87,7 +93,7 @@ export default function Scoreboard({
         className="scoreboard__restart"
         onClick={onRestart}
       >
-        {status === "ended" ? "Play Again" : "Restart"}
+        {status === "ended" ? "Play Again" : status === "countdown" ? "Restart" : "Restart"}
       </button>
     </header>
   );

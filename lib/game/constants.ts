@@ -2,6 +2,13 @@ import type { AttackKind, Direction, EnemyKind } from "@/types/game";
 
 export const GRID_SIZE = 50;
 export const TICK_MS = 110;
+export const COUNTDOWN_SECONDS = 3;
+
+export const ENEMY_COUNT = 4;
+export const ENEMY_KINDS = ["hunter", "patroller", "striker", "warden"] as const;
+export const ENEMY_MIN_SNAKE_DISTANCE = 10;
+export const ENEMY_MIN_SEPARATION = 9;
+export const ENEMY_SEPARATION_RADIUS = 4;
 
 export const PLAYER_COLORS: Record<1 | 2, { head: string; body: string; glow: string }> = {
   1: {
@@ -22,16 +29,10 @@ export const BACKGROUND_COLOR = "#0f172a";
 
 export type EnemySpawnConfig = {
   kind: EnemyKind;
-  position: { x: number; y: number };
   direction: Direction;
 };
 
-export const ENEMY_SPAWNS: EnemySpawnConfig[] = [
-  { kind: "hunter", position: { x: 12, y: 12 }, direction: "RIGHT" },
-  { kind: "patroller", position: { x: 37, y: 12 }, direction: "DOWN" },
-  { kind: "striker", position: { x: 12, y: 37 }, direction: "LEFT" },
-  { kind: "warden", position: { x: 37, y: 37 }, direction: "UP" },
-];
+export const ENEMY_DIRECTIONS: Direction[] = ["UP", "DOWN", "LEFT", "RIGHT"];
 
 export const ENEMY_STATS: Record<
   EnemyKind,
