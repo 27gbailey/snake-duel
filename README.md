@@ -4,7 +4,7 @@ A two-player Snake game built with Next.js, TypeScript, and HTML5 Canvas.
 
 ## Features
 
-- **25×25 grid** with wall, self, and snake-to-snake collisions
+- **50×50 grid** with wall, self, and snake-to-snake collisions
 - **Head-to-head draw** when both snakes collide at the same cell
 - **Shared keyboard**: Player 1 uses WASD, Player 2 uses arrow keys
 - **Scoreboard** with per-player scores and game-over messaging

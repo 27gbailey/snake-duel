@@ -1,4 +1,4 @@
-export const GRID_SIZE = 25;
+export const GRID_SIZE = 50;
 export const TICK_MS = 110;
 
 export const PLAYER_COLORS: Record<1 | 2, { head: string; body: string; glow: string }> = {
