@@ -40,6 +40,50 @@ components/SnakeGame.tsx — Main game component
 components/Scoreboard.tsx — Score display and restart
 ```
 
+## Deploy
+
+The project is configured for static export and GitHub Pages.
+
+### Option A: GitHub Pages (recommended)
+
+1. Authenticate with GitHub (one-time):
+
+```bash
+gh auth login
+```
+
+2. Run the deploy script:
+
+```bash
+chmod +x scripts/deploy.sh
+./scripts/deploy.sh
+```
+
+Your game will be live at `https://<your-username>.github.io/snake-duel/` after the GitHub Actions workflow finishes.
+
+### Option B: Vercel
+
+```bash
+npm install
+npx vercel login
+npx vercel --prod
+```
+
+Vercel does not require the `GITHUB_PAGES` base path. For Vercel deploys, build with:
+
+```bash
+npm run build
+```
+
+### Manual build
+
+```bash
+npm install
+GITHUB_PAGES=true npm run build
+```
+
+Static files are written to `out/`.
+
 ## Scripts
 
 - `npm run dev` — Start development server
