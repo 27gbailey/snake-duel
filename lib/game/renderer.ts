@@ -1,8 +1,7 @@
 import {
   BACKGROUND_COLOR,
-  BULLET_COLOR,
-  ENEMY_COLOR,
-  ENEMY_GLOW,
+  BULLET_COLORS,
+  ENEMY_STATS,
   FOOD_COLOR,
   GRID_LINE_COLOR,
   GRID_SIZE,
@@ -24,12 +23,12 @@ export function drawGame(
   drawGrid(ctx, state.gridSize, cellSize);
   drawFood(ctx, state.food, cellSize);
 
-  for (const enemy of state.enemies) {
-    drawEnemy(ctx, enemy, cellSize);
-  }
-
   for (const bullet of state.bullets) {
     drawBullet(ctx, bullet, cellSize);
+  }
+
+  for (const enemy of state.enemies) {
+    drawEnemy(ctx, enemy, cellSize);
   }
 
   drawSnake(ctx, state.players[1], 1, cellSize);
@@ -82,6 +81,7 @@ function drawEnemy(
   enemy: Enemy,
   cellSize: number,
 ): void {
+  const stats = ENEMY_STATS[enemy.kind];
   const padding = cellSize * 0.12;
   const x = enemy.position.x * cellSize + padding;
   const y = enemy.position.y * cellSize + padding;
@@ -89,17 +89,31 @@ function drawEnemy(
   const centerX = x + size / 2;
   const centerY = y + size / 2;
 
-  ctx.shadowColor = ENEMY_GLOW;
+  ctx.shadowColor = stats.glow;
   ctx.shadowBlur = cellSize * 0.35;
-  ctx.fillStyle = ENEMY_COLOR;
+  ctx.fillStyle = stats.color;
   ctx.beginPath();
-  ctx.arc(centerX, centerY, size * 0.42, 0, Math.PI * 2);
+
+  if (enemy.kind === "patroller") {
+    ctx.roundRect(x, y, size, size, size * 0.2);
+  } else if (enemy.kind === "striker") {
+    ctx.moveTo(centerX, y);
+    ctx.lineTo(x + size, centerY);
+    ctx.lineTo(centerX, y + size);
+    ctx.lineTo(x, centerY);
+    ctx.closePath();
+  } else if (enemy.kind === "warden") {
+    ctx.arc(centerX, centerY, size * 0.46, 0, Math.PI * 2);
+  } else {
+    ctx.arc(centerX, centerY, size * 0.42, 0, Math.PI * 2);
+  }
+
   ctx.fill();
   ctx.shadowBlur = 0;
 
-  ctx.fillStyle = "#7f1d1d";
+  ctx.fillStyle = "rgba(15, 23, 42, 0.85)";
   ctx.beginPath();
-  ctx.arc(centerX, centerY, size * 0.18, 0, Math.PI * 2);
+  ctx.arc(centerX, centerY, size * 0.16, 0, Math.PI * 2);
   ctx.fill();
 }
 
@@ -108,16 +122,40 @@ function drawBullet(
   bullet: Bullet,
   cellSize: number,
 ): void {
-  const centerX = bullet.position.x * cellSize + cellSize / 2;
-  const centerY = bullet.position.y * cellSize + cellSize / 2;
-  const radius = cellSize * 0.22;
+  const padding = cellSize * 0.18;
+  const x = bullet.position.x * cellSize + padding;
+  const y = bullet.position.y * cellSize + padding;
+  const size = cellSize - padding * 2;
+  const centerX = x + size / 2;
+  const centerY = y + size / 2;
+  const color = BULLET_COLORS[bullet.kind];
 
-  ctx.fillStyle = BULLET_COLOR;
-  ctx.shadowColor = "rgba(251, 191, 36, 0.6)";
-  ctx.shadowBlur = cellSize * 0.25;
-  ctx.beginPath();
-  ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.fillStyle = color;
+  ctx.shadowColor = `${color}99`;
+  ctx.shadowBlur = cellSize * 0.2;
+
+  if (bullet.kind === "beam") {
+    ctx.globalAlpha = 0.75;
+    ctx.fillRect(x, y, size, size);
+    ctx.globalAlpha = 1;
+  } else if (bullet.kind === "burst") {
+    ctx.beginPath();
+    ctx.moveTo(centerX, y);
+    ctx.lineTo(x + size, centerY);
+    ctx.lineTo(centerX, y + size);
+    ctx.lineTo(x, centerY);
+    ctx.closePath();
+    ctx.fill();
+  } else if (bullet.kind === "spread") {
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, size * 0.34, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, size * 0.28, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   ctx.shadowBlur = 0;
 }
 

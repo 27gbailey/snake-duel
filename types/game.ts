@@ -20,15 +20,26 @@ export type EndReason =
   | "enemy"
   | null;
 
+export type EnemyKind = "hunter" | "patroller" | "striker" | "warden";
+
+export type AttackKind = "shot" | "spread" | "burst" | "beam";
+
 export type Enemy = {
   id: number;
+  kind: EnemyKind;
   position: Position;
+  direction: Direction;
+  moveCooldown: number;
+  attackCooldown: number;
 };
 
 export type Bullet = {
   id: number;
   position: Position;
   direction: Direction;
+  kind: AttackKind;
+  speed: number;
+  ttl?: number;
 };
 
 export type PlayerState = {

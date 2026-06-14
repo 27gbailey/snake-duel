@@ -28,6 +28,30 @@ export function positionsEqual(a: Position, b: Position): boolean {
   return a.x === b.x && a.y === b.y;
 }
 
+export function flipDirection(direction: Direction): Direction {
+  switch (direction) {
+    case "UP":
+      return "DOWN";
+    case "DOWN":
+      return "UP";
+    case "LEFT":
+      return "RIGHT";
+    case "RIGHT":
+      return "LEFT";
+  }
+}
+
+export function getPerpendicularDirections(direction: Direction): [Direction, Direction] {
+  switch (direction) {
+    case "UP":
+    case "DOWN":
+      return ["LEFT", "RIGHT"];
+    case "LEFT":
+    case "RIGHT":
+      return ["UP", "DOWN"];
+  }
+}
+
 export function isOutOfBounds(pos: Position, gridSize: number): boolean {
   return pos.x < 0 || pos.x >= gridSize || pos.y < 0 || pos.y >= gridSize;
 }

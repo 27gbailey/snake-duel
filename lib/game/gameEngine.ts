@@ -6,8 +6,9 @@ import {
 } from "@/lib/game/collision";
 import {
   advanceBullets,
+  advanceEnemies,
   createInitialEnemies,
-  fireEnemyBullets,
+  fireEnemyAttacks,
   getBulletHits,
   getEnemyCollisionPlayer,
   getOccupiedCells,
@@ -44,10 +45,10 @@ function getActivePlayerIds(mode: GameMode): PlayerId[] {
 
 function getStartMessage(mode: GameMode): string {
   if (mode === "solo") {
-    return "Solo mode — dodge enemy turrets and bullets";
+    return "Solo — dodge moving enemies: shots, spreads, bursts & beams";
   }
 
-  return "Dodge turrets & bullets · P1: WASD · P2: Arrows";
+  return "Dodge hunters, patrollers, strikers & wardens";
 }
 
 function createInitialSnake(
@@ -259,15 +260,22 @@ export function advanceGame(state: GameState): GameState {
   const activeIds = getActivePlayerIds(state.mode);
   let players = { ...state.players };
 
-  const { bullets: newBullets, nextBulletId } = fireEnemyBullets(
-    state.enemies,
+  let enemies = advanceEnemies(state.enemies, players, state.mode, state.gridSize);
+
+  const attackResult = fireEnemyAttacks(
+    enemies,
     players,
     state.mode,
-    tick,
+    state.gridSize,
     state.nextBulletId,
   );
+  enemies = attackResult.enemies;
 
-  let bullets = advanceBullets([...state.bullets, ...newBullets], state.gridSize);
+  let bullets = advanceBullets(
+    [...state.bullets, ...attackResult.bullets],
+    state.gridSize,
+  );
+  const nextBulletId = attackResult.nextBulletId;
   const bulletHits = getBulletHits(bullets, players, state.mode);
 
   if (bulletHits.length > 0) {
@@ -328,6 +336,7 @@ export function advanceGame(state: GameState): GameState {
     return finalizeGame({
       ...state,
       players,
+      enemies,
       bullets,
       tick,
       nextBulletId,
@@ -347,7 +356,7 @@ export function advanceGame(state: GameState): GameState {
       state.mode === "duel" ? players[id === 1 ? 2 : 1].snake : [];
     const nextHead = nextHeads[id];
 
-    if (getEnemyCollisionPlayer(nextHead, state.enemies)) {
+    if (getEnemyCollisionPlayer(nextHead, enemies)) {
       players[id] = {
         ...player,
         alive: false,
@@ -398,6 +407,7 @@ export function advanceGame(state: GameState): GameState {
     return finalizeGame({
       ...state,
       players,
+      enemies,
       bullets,
       tick,
       nextBulletId,
@@ -408,6 +418,7 @@ export function advanceGame(state: GameState): GameState {
     return finalizeGame({
       ...state,
       players,
+      enemies,
       bullets,
       tick,
       nextBulletId,
@@ -416,12 +427,13 @@ export function advanceGame(state: GameState): GameState {
 
   let food = state.food;
   if (activeIds.some((id) => ateFood[id])) {
-    food = spawnFood(players, state.enemies, state.gridSize);
+    food = spawnFood(players, enemies, state.gridSize);
   }
 
   return {
     ...state,
     players,
+    enemies,
     food,
     bullets,
     tick,
