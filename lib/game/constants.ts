@@ -62,4 +62,4 @@ export const TURN_KEYS: Record<string, Turn> = {
 export const BUILD_LABEL =
   process.env.NEXT_PUBLIC_BUILD_ID?.slice(0, 7) ?? "local";
 
-export const ARENA_VERSION = "large-arena-v5";
+export const ARENA_VERSION = "large-arena-v6";

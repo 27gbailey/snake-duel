@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  ARENA_VERSION,
   MAX_FRAME_DELTA_MS,
   MAX_TICKS_PER_FRAME,
   TICK_MS,
@@ -96,6 +97,21 @@ export default function SnakeGame() {
     setUi(uiRef.current);
     resetCamera(fresh);
   }, [resetCamera]);
+
+  useEffect(() => {
+    const basePath = window.location.pathname.includes("/snake-duel")
+      ? "/snake-duel"
+      : "";
+
+    fetch(`${basePath}/version.json?ts=${Date.now()}`, { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((remote) => {
+        if (remote?.arena && remote.arena !== ARENA_VERSION) {
+          window.location.reload();
+        }
+      })
+      .catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     const resize = () => {
