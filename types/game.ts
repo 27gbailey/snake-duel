@@ -30,6 +30,7 @@ export type Snake = {
   isPlayer: boolean;
   color: SnakeColor;
   pendingTurn: Turn | null;
+  moveAccumulator: number;
 };
 
 export type GameStatus = "playing" | "ended";

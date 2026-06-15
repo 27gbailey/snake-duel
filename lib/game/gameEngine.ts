@@ -3,6 +3,8 @@ import {
   AI_SNAKE_COUNT,
   GRID_SIZE,
   INITIAL_SNAKE_LENGTH,
+  OPPONENT_MOVE_STEP,
+  OPPONENT_MOVE_THRESHOLD,
   PELLET_MIN,
   PELLET_TARGET,
   PLAYER_COLOR,
@@ -79,7 +81,25 @@ function createSnake(
     isPlayer,
     color: isPlayer ? PLAYER_COLOR : AI_COLORS[colorIndex % AI_COLORS.length],
     pendingTurn: null,
+    moveAccumulator: 0,
   };
+}
+
+function opponentWillMoveThisTick(snake: Snake): boolean {
+  return snake.moveAccumulator + OPPONENT_MOVE_STEP >= OPPONENT_MOVE_THRESHOLD;
+}
+
+function tickOpponentMoveAccumulator(snake: Snake): Snake {
+  if (!snake.alive) {
+    return snake;
+  }
+
+  let moveAccumulator = snake.moveAccumulator + OPPONENT_MOVE_STEP;
+  if (moveAccumulator >= OPPONENT_MOVE_THRESHOLD) {
+    moveAccumulator -= OPPONENT_MOVE_THRESHOLD;
+  }
+
+  return { ...snake, moveAccumulator };
 }
 
 function getAiSpawnPoints(gridSize: number): Array<{
@@ -300,16 +320,34 @@ export function advanceGame(state: GameState): GameState {
   }
 
   const tick = state.tick + 1;
-  let opponents = assignAiTurns(state);
+  const movingOpponentIds = new Set<number>();
+
+  for (const opponent of state.opponents) {
+    if (opponent.alive && opponentWillMoveThisTick(opponent)) {
+      movingOpponentIds.add(opponent.id);
+    }
+  }
+
+  let opponents = assignAiTurns(state, movingOpponentIds);
   let player = applyPendingTurn(state.player);
-  opponents = opponents.map(applyPendingTurn);
+  opponents = opponents.map((opponent) => {
+    if (!opponent.alive || !movingOpponentIds.has(opponent.id)) {
+      return opponent;
+    }
+
+    return applyPendingTurn(opponent);
+  });
 
   const allSnakes = [player, ...opponents];
   const aliveSnakes = allSnakes.filter((snake) => snake.alive);
 
   const nextHeads = new Map<number, Position>();
   for (const snake of aliveSnakes) {
-    nextHeads.set(snake.id, getNextHead(snake.body[0], snake.direction));
+    if (snake.isPlayer || movingOpponentIds.has(snake.id)) {
+      nextHeads.set(snake.id, getNextHead(snake.body[0], snake.direction));
+    } else {
+      nextHeads.set(snake.id, snake.body[0]);
+    }
   }
 
   const deadIds = resolveHeadToHead(aliveSnakes, nextHeads);
@@ -399,6 +437,12 @@ export function advanceGame(state: GameState): GameState {
       return opponent;
     }
 
+    const opponentAfterTick = tickOpponentMoveAccumulator(opponent);
+
+    if (!movingOpponentIds.has(opponent.id)) {
+      return opponentAfterTick;
+    }
+
     const nextHead = nextHeads.get(opponent.id)!;
     const eatResult = tryEatPellet(nextHead, pellets);
     pellets = eatResult.pellets;
@@ -407,8 +451,8 @@ export function advanceGame(state: GameState): GameState {
     }
 
     return trimSnakeBody({
-      ...opponent,
-      body: advanceSnakeBody(opponent, nextHead, eatResult.ate),
+      ...opponentAfterTick,
+      body: advanceSnakeBody(opponentAfterTick, nextHead, eatResult.ate),
       score: eatResult.ate ? opponent.score + 1 : opponent.score,
     });
   });
@@ -423,6 +467,8 @@ export function advanceGame(state: GameState): GameState {
     player = result.player;
     opponents = result.opponents;
   }
+
+  opponents = opponents.filter((opponent) => opponent.alive);
 
   for (let i = 0; i < deadOpponents.length; i += 1) {
     const replacement = spawnReplacementOpponent({

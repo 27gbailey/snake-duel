@@ -74,11 +74,14 @@ function buildSharedBlockedCells(state: GameState): Set<string> {
   return blocked;
 }
 
-export function assignAiTurns(state: GameState): Snake[] {
+export function assignAiTurns(
+  state: GameState,
+  movingOpponentIds: Set<number>,
+): Snake[] {
   const sharedBlocked = buildSharedBlockedCells(state);
 
   return state.opponents.map((opponent) => {
-    if (!opponent.alive) {
+    if (!opponent.alive || !movingOpponentIds.has(opponent.id)) {
       return opponent;
     }
 
