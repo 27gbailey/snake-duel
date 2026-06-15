@@ -27,15 +27,23 @@ export function getCameraTarget(
 export function smoothCamera(
   current: Camera,
   target: Camera,
-  factor = 0.28,
+  factor = 0.35,
 ): Camera {
+  const dx = target.x - current.x;
+  const dy = target.y - current.y;
+  const distance = Math.hypot(dx, dy);
+
+  // Snap when far behind so the snake is never off-screen.
+  if (distance > 120) {
+    return target;
+  }
+
   return {
-    x: current.x + (target.x - current.x) * factor,
-    y: current.y + (target.y - current.y) * factor,
+    x: current.x + dx * factor,
+    y: current.y + dy * factor,
   };
 }
 
-// Legacy alias used by tests or imports
 export function getCamera(state: GameState, cellSize: number): Camera {
   return getCameraTarget(state, cellSize);
 }

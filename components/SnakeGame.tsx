@@ -1,11 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { TICK_MS, TURN_KEYS, VIEWPORT_CELLS } from "@/lib/game/constants";
 import {
-  getCameraTarget,
-  smoothCamera,
-} from "@/lib/game/camera";
+  MAX_FRAME_DELTA_MS,
+  MAX_TICKS_PER_FRAME,
+  TICK_MS,
+  TURN_KEYS,
+  VIEWPORT_CELLS,
+} from "@/lib/game/constants";
+import { getCameraTarget, smoothCamera } from "@/lib/game/camera";
 import {
   advanceGame,
   createInitialGameState,
@@ -47,16 +50,32 @@ function uiChanged(a: UiSnapshot, b: UiSnapshot): boolean {
   );
 }
 
+function resizeCanvas(
+  canvas: HTMLCanvasElement,
+  cellSize: number,
+  ctxRef: { current: CanvasRenderingContext2D | null },
+): CanvasRenderingContext2D | null {
+  const { width, height } = getCanvasSize(cellSize, VIEWPORT_CELLS);
+
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width = width;
+    canvas.height = height;
+    ctxRef.current = canvas.getContext("2d", { alpha: false });
+  }
+
+  return ctxRef.current;
+}
+
 export default function SnakeGame() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const gameStateRef = useRef<GameState>(createInitialGameState());
   const cellSizeRef = useRef(16);
   const cameraRef = useRef<Camera>({ x: 0, y: 0 });
+  const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
   const uiRef = useRef<UiSnapshot>(toUiSnapshot(gameStateRef.current));
 
   const [ui, setUi] = useState<UiSnapshot>(uiRef.current);
-  const [cellSize, setCellSize] = useState(16);
 
   const syncUiIfNeeded = useCallback(() => {
     const next = toUiSnapshot(gameStateRef.current);
@@ -66,32 +85,39 @@ export default function SnakeGame() {
     }
   }, []);
 
+  const resetCamera = useCallback((state: GameState) => {
+    cameraRef.current = getCameraTarget(state, cellSizeRef.current);
+  }, []);
+
   const handleRestart = useCallback(() => {
     const fresh = createInitialGameState();
     gameStateRef.current = fresh;
     uiRef.current = toUiSnapshot(fresh);
     setUi(uiRef.current);
-    cameraRef.current = getCameraTarget(fresh, cellSizeRef.current);
-  }, []);
+    resetCamera(fresh);
+  }, [resetCamera]);
 
   useEffect(() => {
     const resize = () => {
-      if (!containerRef.current) return;
+      const canvas = canvasRef.current;
+      if (!canvas || !containerRef.current) return;
+
       const { clientWidth, clientHeight } = containerRef.current;
-      const size = getCellSize(
+      const nextSize = getCellSize(
         clientWidth,
         clientHeight,
-        gameStateRef.current.viewportCells,
+        VIEWPORT_CELLS,
       );
-      const nextSize = size > 0 ? size : 16;
-      cellSizeRef.current = nextSize;
-      setCellSize(nextSize);
+
+      cellSizeRef.current = nextSize > 0 ? nextSize : 16;
+      resizeCanvas(canvas, cellSizeRef.current, ctxRef);
+      resetCamera(gameStateRef.current);
     };
 
     resize();
     window.addEventListener("resize", resize);
     return () => window.removeEventListener("resize", resize);
-  }, []);
+  }, [resetCamera]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -112,7 +138,7 @@ export default function SnakeGame() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext("2d", { alpha: false });
+    let ctx = resizeCanvas(canvas, cellSizeRef.current, ctxRef);
     if (!ctx) return;
 
     let running = true;
@@ -120,22 +146,29 @@ export default function SnakeGame() {
     let tickAccumulator = 0;
     let uiFrame = 0;
 
-    cameraRef.current = getCameraTarget(
-      gameStateRef.current,
-      cellSizeRef.current,
-    );
+    resetCamera(gameStateRef.current);
 
     const frame = (now: number) => {
       if (!running) {
         return;
       }
 
-      const delta = now - lastFrame;
+      const rawDelta = now - lastFrame;
       lastFrame = now;
-      tickAccumulator += delta;
+      const delta = Math.min(rawDelta, MAX_FRAME_DELTA_MS);
+      tickAccumulator = Math.min(
+        tickAccumulator + delta,
+        TICK_MS * MAX_TICKS_PER_FRAME,
+      );
 
-      while (tickAccumulator >= TICK_MS) {
+      let ticksThisFrame = 0;
+      while (
+        tickAccumulator >= TICK_MS &&
+        ticksThisFrame < MAX_TICKS_PER_FRAME
+      ) {
         tickAccumulator -= TICK_MS;
+        ticksThisFrame += 1;
+
         const current = gameStateRef.current;
         if (current.status === "playing") {
           gameStateRef.current = advanceGame(current);
@@ -145,12 +178,15 @@ export default function SnakeGame() {
       const state = gameStateRef.current;
       const size = cellSizeRef.current;
       const targetCamera = getCameraTarget(state, size);
-      cameraRef.current = smoothCamera(cameraRef.current, targetCamera);
+      cameraRef.current = smoothCamera(cameraRef.current, targetCamera, 0.35);
 
-      drawGame(ctx, state, size, cameraRef.current);
+      ctx = resizeCanvas(canvas, size, ctxRef) ?? ctx;
+      if (ctx) {
+        drawGame(ctx, state, size, cameraRef.current);
+      }
 
       uiFrame += 1;
-      if (uiFrame % 5 === 0) {
+      if (uiFrame % 4 === 0) {
         syncUiIfNeeded();
       }
 
@@ -162,9 +198,12 @@ export default function SnakeGame() {
     return () => {
       running = false;
     };
-  }, [syncUiIfNeeded]);
+  }, [resetCamera, syncUiIfNeeded]);
 
-  const { width, height } = getCanvasSize(cellSize, VIEWPORT_CELLS);
+  const { width, height } = getCanvasSize(
+    cellSizeRef.current,
+    VIEWPORT_CELLS,
+  );
 
   return (
     <div className="game">
@@ -181,7 +220,8 @@ export default function SnakeGame() {
       </div>
 
       <p className="game__hint">
-        Steer with <kbd>←</kbd> <kbd>→</kbd> (8 directions). Cross your own trail safely — trap rivals to absorb their length.
+        Steer with <kbd>←</kbd> <kbd>→</kbd> or <kbd>A</kbd> <kbd>D</kbd>.
+        Cross your own trail safely — trap rivals to absorb their length.
       </p>
     </div>
   );
