@@ -6,10 +6,10 @@ export const TICK_MS = 100;
 export const MAX_TICKS_PER_FRAME = 2;
 export const MAX_FRAME_DELTA_MS = 50;
 export const INITIAL_SNAKE_LENGTH = 16;
-export const PELLET_TARGET = 45;
-export const PELLET_MIN = 35;
+export const PELLET_TARGET = 200;
+export const PELLET_MIN = 160;
+export const PELLET_REFILL_BATCH = 15;
 export const AI_SNAKE_COUNT = 4;
-export const MAX_BODY_LENGTH = 70;
 /** Opponents move 9 out of every 10 player ticks (~10% slower). */
 export const OPPONENT_MOVE_STEP = 9;
 export const OPPONENT_MOVE_THRESHOLD = 10;
@@ -62,4 +62,4 @@ export const TURN_KEYS: Record<string, Turn> = {
 export const BUILD_LABEL =
   process.env.NEXT_PUBLIC_BUILD_ID?.slice(0, 7) ?? "local";
 
-export const ARENA_VERSION = "large-arena-v6";
+export const ARENA_VERSION = "large-arena-v7";

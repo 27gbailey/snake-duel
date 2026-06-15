@@ -12,7 +12,7 @@ if (!existsSync(indexPath)) {
 copyFileSync(indexPath, join(outDir, "404.html"));
 
 const versionInfo = {
-  arena: process.env.ARENA_VERSION ?? "large-arena-v6",
+  arena: process.env.ARENA_VERSION ?? "large-arena-v7",
   build: process.env.NEXT_PUBLIC_BUILD_ID ?? "local",
   builtAt: new Date().toISOString(),
 };

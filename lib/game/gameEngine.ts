@@ -6,6 +6,7 @@ import {
   OPPONENT_MOVE_STEP,
   OPPONENT_MOVE_THRESHOLD,
   PELLET_MIN,
+  PELLET_REFILL_BATCH,
   PELLET_TARGET,
   PLAYER_COLOR,
   PLAYER_ID,
@@ -32,7 +33,7 @@ import {
   spawnPelletFast,
   spawnPelletsFast,
 } from "@/lib/game/pellets";
-import { absorbVictimBody, trimSnakeBody } from "@/lib/game/snake";
+import { absorbVictimBody } from "@/lib/game/snake";
 import type {
   Direction,
   EndReason,
@@ -264,7 +265,7 @@ function applyAbsorption(
 ): { player: Snake; opponents: Snake[] } {
   if (killerId === player.id) {
     return {
-      player: trimSnakeBody(absorbVictimBody(player, victim)),
+      player: absorbVictimBody(player, victim),
       opponents,
     };
   }
@@ -273,7 +274,7 @@ function applyAbsorption(
     player,
     opponents: opponents.map((opponent) =>
       opponent.id === killerId
-        ? trimSnakeBody(absorbVictimBody(opponent, victim))
+        ? absorbVictimBody(opponent, victim)
         : opponent,
     ),
   };
@@ -290,17 +291,35 @@ function replenishPellets(
   let nextPellets = pellets;
 
   if (ateThisTick) {
-    const occupied = buildOccupiedSet(
-      collectSnakeBodies(player, opponents),
-      nextPellets,
-    );
-    nextPellets = [
-      ...nextPellets,
-      spawnPelletFast(occupied, gridSize),
-    ];
+    for (let i = 0; i < 2; i += 1) {
+      const occupied = buildOccupiedSet(
+        collectSnakeBodies(player, opponents),
+        nextPellets,
+      );
+      nextPellets = [
+        ...nextPellets,
+        spawnPelletFast(occupied, gridSize),
+      ];
+    }
   }
 
-  if (tick % 20 === 0 && nextPellets.length < PELLET_MIN) {
+  if (tick % 12 === 0 && nextPellets.length < PELLET_TARGET) {
+    const pelletsNeeded = PELLET_TARGET - nextPellets.length;
+    const spawnCount = Math.min(PELLET_REFILL_BATCH, pelletsNeeded);
+
+    for (let i = 0; i < spawnCount; i += 1) {
+      const occupied = buildOccupiedSet(
+        collectSnakeBodies(player, opponents),
+        nextPellets,
+      );
+      nextPellets = [
+        ...nextPellets,
+        spawnPelletFast(occupied, gridSize),
+      ];
+    }
+  }
+
+  if (tick % 30 === 0 && nextPellets.length < PELLET_MIN) {
     const occupied = buildOccupiedSet(
       collectSnakeBodies(player, opponents),
       nextPellets,
@@ -420,11 +439,11 @@ export function advanceGame(state: GameState): GameState {
     pellets = eatResult.pellets;
     anyPelletEaten = eatResult.ate;
 
-    player = trimSnakeBody({
+    player = {
       ...player,
       body: advanceSnakeBody(player, nextHead, eatResult.ate),
       score: eatResult.ate ? player.score + 1 : player.score,
-    });
+    };
   } else {
     player = { ...player, alive: false };
   }
@@ -450,11 +469,11 @@ export function advanceGame(state: GameState): GameState {
       anyPelletEaten = true;
     }
 
-    return trimSnakeBody({
+    return {
       ...opponentAfterTick,
       body: advanceSnakeBody(opponentAfterTick, nextHead, eatResult.ate),
       score: eatResult.ate ? opponent.score + 1 : opponent.score,
-    });
+    };
   });
 
   for (const victim of victims) {
@@ -518,6 +537,6 @@ export function advanceGame(state: GameState): GameState {
     pellets,
     tick,
     nextSnakeId,
-    message: "Trap rivals to absorb their full body length",
+    message: "Trap rivals to absorb their full length onto your tail",
   };
 }
