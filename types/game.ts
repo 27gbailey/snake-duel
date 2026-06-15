@@ -1,4 +1,12 @@
-export type Direction = "UP" | "DOWN" | "LEFT" | "RIGHT";
+export type Direction =
+  | "UP"
+  | "DOWN"
+  | "LEFT"
+  | "RIGHT"
+  | "UP_LEFT"
+  | "UP_RIGHT"
+  | "DOWN_LEFT"
+  | "DOWN_RIGHT";
 
 export type Turn = "left" | "right";
 
@@ -26,10 +34,16 @@ export type Snake = {
 
 export type GameStatus = "playing" | "ended";
 
-export type EndReason = "wall" | "self" | "snake" | "head-to-head" | null;
+export type EndReason = "wall" | "snake" | "head-to-head" | null;
+
+export type Camera = {
+  x: number;
+  y: number;
+};
 
 export type GameState = {
   gridSize: number;
+  viewportCells: number;
   player: Snake;
   opponents: Snake[];
   pellets: Position[];

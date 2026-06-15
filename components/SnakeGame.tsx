@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { TICK_MS, TURN_KEYS } from "@/lib/game/constants";
+import { getCamera } from "@/lib/game/camera";
 import {
   advanceGame,
   createInitialGameState,
@@ -35,7 +36,11 @@ export default function SnakeGame() {
     const resize = () => {
       if (!containerRef.current) return;
       const { clientWidth, clientHeight } = containerRef.current;
-      const size = getCellSize(clientWidth, clientHeight);
+      const size = getCellSize(
+        clientWidth,
+        clientHeight,
+        gameStateRef.current.viewportCells,
+      );
       setCellSize(size > 0 ? size : 16);
     };
 
@@ -84,10 +89,11 @@ export default function SnakeGame() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    drawGame(ctx, gameState, cellSize);
+    const camera = getCamera(gameState, cellSize);
+    drawGame(ctx, gameState, cellSize, camera);
   }, [gameState, cellSize]);
 
-  const { width, height } = getCanvasSize(cellSize);
+  const { width, height } = getCanvasSize(cellSize, gameState.viewportCells);
   const rivalsAlive = gameState.opponents.filter((opponent) => opponent.alive).length;
 
   return (
@@ -109,7 +115,7 @@ export default function SnakeGame() {
       </div>
 
       <p className="game__hint">
-        Steer with <kbd>←</kbd> <kbd>→</kbd> — you always move forward. Circle rivals so they crash into your body and steal their points.
+        Steer with <kbd>←</kbd> <kbd>→</kbd> (8 directions). Cross your own trail safely — trap rivals to absorb their full length.
       </p>
     </div>
   );

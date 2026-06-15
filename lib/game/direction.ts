@@ -1,46 +1,44 @@
+import { DIRECTION_ORDER } from "@/lib/game/constants";
 import type { Direction, Position, Turn } from "@/types/game";
 
 export function turnLeft(direction: Direction): Direction {
-  switch (direction) {
-    case "UP":
-      return "LEFT";
-    case "LEFT":
-      return "DOWN";
-    case "DOWN":
-      return "RIGHT";
-    case "RIGHT":
-      return "UP";
-  }
+  const index = DIRECTION_ORDER.indexOf(direction);
+  return DIRECTION_ORDER[(index - 1 + DIRECTION_ORDER.length) % DIRECTION_ORDER.length];
 }
 
 export function turnRight(direction: Direction): Direction {
-  switch (direction) {
-    case "UP":
-      return "RIGHT";
-    case "RIGHT":
-      return "DOWN";
-    case "DOWN":
-      return "LEFT";
-    case "LEFT":
-      return "UP";
-  }
+  const index = DIRECTION_ORDER.indexOf(direction);
+  return DIRECTION_ORDER[(index + 1) % DIRECTION_ORDER.length];
 }
 
 export function applyTurn(direction: Direction, turn: Turn): Direction {
   return turn === "left" ? turnLeft(direction) : turnRight(direction);
 }
 
-export function getNextHead(head: Position, direction: Direction): Position {
+export function directionDelta(direction: Direction): Position {
   switch (direction) {
     case "UP":
-      return { x: head.x, y: head.y - 1 };
+      return { x: 0, y: -1 };
     case "DOWN":
-      return { x: head.x, y: head.y + 1 };
+      return { x: 0, y: 1 };
     case "LEFT":
-      return { x: head.x - 1, y: head.y };
+      return { x: -1, y: 0 };
     case "RIGHT":
-      return { x: head.x + 1, y: head.y };
+      return { x: 1, y: 0 };
+    case "UP_LEFT":
+      return { x: -1, y: -1 };
+    case "UP_RIGHT":
+      return { x: 1, y: -1 };
+    case "DOWN_LEFT":
+      return { x: -1, y: 1 };
+    case "DOWN_RIGHT":
+      return { x: 1, y: 1 };
   }
+}
+
+export function getNextHead(head: Position, direction: Direction): Position {
+  const delta = directionDelta(direction);
+  return { x: head.x + delta.x, y: head.y + delta.y };
 }
 
 export function positionsEqual(a: Position, b: Position): boolean {

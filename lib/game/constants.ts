@@ -1,10 +1,11 @@
 import type { Direction, SnakeColor, Turn } from "@/types/game";
 
-export const GRID_SIZE = 50;
+export const GRID_SIZE = 180;
+export const VIEWPORT_CELLS = 28;
 export const TICK_MS = 75;
 export const INITIAL_SNAKE_LENGTH = 8;
-export const PELLET_COUNT = 45;
-export const AI_SNAKE_COUNT = 6;
+export const PELLET_COUNT = 220;
+export const AI_SNAKE_COUNT = 8;
 export const PLAYER_ID = 0;
 
 export const PLAYER_COLOR: SnakeColor = {
@@ -30,7 +31,18 @@ export const BACKGROUND_COLOR = "#1a1033";
 export const BACKGROUND_ACCENT = "#2d1b4e";
 export const GRID_LINE_COLOR = "rgba(255, 255, 255, 0.03)";
 
-export const AI_DIRECTIONS: Direction[] = ["UP", "DOWN", "LEFT", "RIGHT"];
+export const DIRECTION_ORDER: Direction[] = [
+  "UP",
+  "UP_RIGHT",
+  "RIGHT",
+  "DOWN_RIGHT",
+  "DOWN",
+  "DOWN_LEFT",
+  "LEFT",
+  "UP_LEFT",
+];
+
+export const AI_DIRECTIONS: Direction[] = DIRECTION_ORDER;
 
 export const TURN_KEYS: Record<string, Turn> = {
   ArrowLeft: "left",
