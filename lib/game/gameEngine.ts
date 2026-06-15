@@ -1,62 +1,60 @@
 import {
   AI_COLORS,
   AI_SNAKE_COUNT,
-  GRID_SIZE,
   INITIAL_SNAKE_LENGTH,
   OPPONENT_MOVE_STEP,
   OPPONENT_MOVE_THRESHOLD,
+  OPPONENT_SPEED,
+  PELLET_EAT_DIST,
   PELLET_MIN,
   PELLET_REFILL_BATCH,
   PELLET_TARGET,
   PLAYER_COLOR,
   PLAYER_ID,
-  VIEWPORT_CELLS,
+  PLAYER_SPEED,
+  SEGMENT_SPACING,
+  TURN_RATE,
+  VIEWPORT_SIZE,
+  WORLD_SIZE,
 } from "@/lib/game/constants";
-import {
-  assignAiTurns,
-  applyPendingTurn,
-} from "@/lib/game/ai";
+import { assignAiTurns } from "@/lib/game/ai";
 import {
   detectCollision,
   findHeadToHeadKiller,
   findKillerByBodyHit,
-  getHeadToHeadGroups,
   resolveHeadToHead,
 } from "@/lib/game/collision";
 import {
-  directionDelta,
+  applyTurnInput,
+  distance,
   getNextHead,
-  positionsEqual,
-} from "@/lib/game/direction";
+} from "@/lib/game/motion";
 import {
-  buildOccupiedSet,
+  collectOccupiedPoints,
   spawnPelletFast,
   spawnPelletsFast,
 } from "@/lib/game/pellets";
 import { absorbVictimBody } from "@/lib/game/snake";
 import type {
-  Direction,
   EndReason,
   GameState,
+  PlayerInput,
   Position,
   Snake,
-  Turn,
 } from "@/types/game";
 
 function createSnakeBody(
   startX: number,
   startY: number,
-  direction: Direction,
+  angle: number,
   length: number,
 ): Position[] {
   const body: Position[] = [{ x: startX, y: startY }];
-  const forward = directionDelta(direction);
-  const tailStep = { x: -forward.x, y: -forward.y };
 
   for (let i = 1; i < length; i += 1) {
     body.push({
-      x: startX + tailStep.x * i,
-      y: startY + tailStep.y * i,
+      x: startX - Math.cos(angle) * SEGMENT_SPACING * i,
+      y: startY - Math.sin(angle) * SEGMENT_SPACING * i,
     });
   }
 
@@ -67,21 +65,20 @@ function createSnake(
   id: number,
   startX: number,
   startY: number,
-  direction: Direction,
+  angle: number,
   isPlayer: boolean,
   colorIndex: number,
 ): Snake {
-  const body = createSnakeBody(startX, startY, direction, INITIAL_SNAKE_LENGTH);
+  const body = createSnakeBody(startX, startY, angle, INITIAL_SNAKE_LENGTH);
 
   return {
     id,
     body,
-    direction,
+    angle,
     score: body.length,
     alive: true,
     isPlayer,
     color: isPlayer ? PLAYER_COLOR : AI_COLORS[colorIndex % AI_COLORS.length],
-    pendingTurn: null,
     moveAccumulator: 0,
   };
 }
@@ -103,40 +100,42 @@ function tickOpponentMoveAccumulator(snake: Snake): Snake {
   return { ...snake, moveAccumulator };
 }
 
-function getAiSpawnPoints(gridSize: number): Array<{
+function getAiSpawnPoints(worldSize: number): Array<{
   x: number;
   y: number;
-  direction: Direction;
+  angle: number;
 }> {
-  const center = Math.floor(gridSize / 2);
-  const margin = Math.floor(gridSize * 0.1);
+  const center = worldSize / 2;
+  const margin = worldSize * 0.08;
 
   return [
-    { x: margin, y: margin, direction: "RIGHT" },
-    { x: gridSize - 1 - margin, y: margin, direction: "LEFT" },
-    { x: margin, y: gridSize - 1 - margin, direction: "RIGHT" },
-    { x: gridSize - 1 - margin, y: gridSize - 1 - margin, direction: "LEFT" },
-    { x: center, y: margin, direction: "DOWN" },
-    { x: center, y: gridSize - 1 - margin, direction: "UP" },
-    { x: margin, y: center, direction: "RIGHT" },
-    { x: gridSize - 1 - margin, y: center, direction: "LEFT" },
-    { x: center - 16, y: center - 16, direction: "DOWN_RIGHT" },
-    { x: center + 16, y: center + 16, direction: "UP_LEFT" },
+    { x: margin, y: margin, angle: 0 },
+    { x: worldSize - margin, y: margin, angle: Math.PI },
+    { x: margin, y: worldSize - margin, angle: 0 },
+    { x: worldSize - margin, y: worldSize - margin, angle: Math.PI },
+    { x: center, y: margin, angle: Math.PI / 2 },
+    { x: center, y: worldSize - margin, angle: -Math.PI / 2 },
+    { x: margin, y: center, angle: 0 },
+    { x: worldSize - margin, y: center, angle: Math.PI },
+    { x: center - 240, y: center - 240, angle: Math.PI / 4 },
+    { x: center + 240, y: center + 240, angle: -Math.PI * 0.75 },
+    { x: center + 240, y: center - 240, angle: Math.PI * 0.75 },
+    { x: center - 240, y: center + 240, angle: -Math.PI / 4 },
   ];
 }
 
 function createOpponents(
-  gridSize: number,
+  worldSize: number,
   nextSnakeId: number,
 ): { opponents: Snake[]; nextId: number } {
-  const spawnPoints = getAiSpawnPoints(gridSize);
+  const spawnPoints = getAiSpawnPoints(worldSize);
   const opponents: Snake[] = [];
   let nextId = nextSnakeId;
 
   for (let i = 0; i < AI_SNAKE_COUNT; i += 1) {
     const spawn = spawnPoints[i % spawnPoints.length];
     opponents.push(
-      createSnake(nextId, spawn.x, spawn.y, spawn.direction, false, i),
+      createSnake(nextId, spawn.x, spawn.y, spawn.angle, false, i),
     );
     nextId += 1;
   }
@@ -147,7 +146,7 @@ function createOpponents(
 function spawnReplacementOpponent(
   state: GameState,
 ): { opponent: Snake; nextSnakeId: number } {
-  const spawnPoints = getAiSpawnPoints(state.gridSize);
+  const spawnPoints = getAiSpawnPoints(state.worldSize);
   const spawn =
     spawnPoints[Math.floor(Math.random() * spawnPoints.length)];
   const colorIndex = state.opponents.length + state.tick;
@@ -156,7 +155,7 @@ function spawnReplacementOpponent(
     state.nextSnakeId,
     spawn.x,
     spawn.y,
-    spawn.direction,
+    spawn.angle,
     false,
     colorIndex,
   );
@@ -186,7 +185,9 @@ function tryEatPellet(
   head: Position,
   pellets: Position[],
 ): { pellets: Position[]; ate: boolean } {
-  const index = pellets.findIndex((pellet) => positionsEqual(pellet, head));
+  const index = pellets.findIndex(
+    (pellet) => distance(head, pellet) < PELLET_EAT_DIST,
+  );
 
   if (index < 0) {
     return { pellets, ate: false };
@@ -198,39 +199,25 @@ function tryEatPellet(
 }
 
 export function createInitialGameState(): GameState {
-  const center = Math.floor(GRID_SIZE / 2);
-  const player = createSnake(PLAYER_ID, center, center, "RIGHT", true, 0);
-  const { opponents, nextId } = createOpponents(GRID_SIZE, 1);
-  const occupied = buildOccupiedSet(
+  const center = WORLD_SIZE / 2;
+  const player = createSnake(PLAYER_ID, center, center, 0, true, 0);
+  const { opponents, nextId } = createOpponents(WORLD_SIZE, 1);
+  const occupied = collectOccupiedPoints(
     collectSnakeBodies(player, opponents),
     [],
   );
-  const pellets = spawnPelletsFast(occupied, GRID_SIZE, PELLET_TARGET);
+  const pellets = spawnPelletsFast(occupied, WORLD_SIZE, PELLET_TARGET);
 
   return {
-    gridSize: GRID_SIZE,
-    viewportCells: VIEWPORT_CELLS,
+    worldSize: WORLD_SIZE,
+    viewportSize: VIEWPORT_SIZE,
     player,
     opponents,
     pellets,
     status: "playing",
-    message: "Arrow keys turn — trap rivals to absorb their length",
+    message: "Steer freely — trap rivals to absorb their length",
     tick: 0,
     nextSnakeId: nextId,
-  };
-}
-
-export function setPlayerTurn(state: GameState, turn: Turn): GameState {
-  if (state.status !== "playing" || !state.player.alive) {
-    return state;
-  }
-
-  return {
-    ...state,
-    player: {
-      ...state.player,
-      pendingTurn: turn,
-    },
   };
 }
 
@@ -284,56 +271,59 @@ function replenishPellets(
   player: Snake,
   opponents: Snake[],
   pellets: Position[],
-  gridSize: number,
+  worldSize: number,
   ateThisTick: boolean,
   tick: number,
 ): Position[] {
   let nextPellets = pellets;
 
   if (ateThisTick) {
-    for (let i = 0; i < 2; i += 1) {
-      const occupied = buildOccupiedSet(
+    for (let i = 0; i < 3; i += 1) {
+      const occupied = collectOccupiedPoints(
         collectSnakeBodies(player, opponents),
         nextPellets,
       );
       nextPellets = [
         ...nextPellets,
-        spawnPelletFast(occupied, gridSize),
+        spawnPelletFast(occupied, worldSize),
       ];
     }
   }
 
-  if (tick % 12 === 0 && nextPellets.length < PELLET_TARGET) {
+  if (tick % 10 === 0 && nextPellets.length < PELLET_TARGET) {
     const pelletsNeeded = PELLET_TARGET - nextPellets.length;
     const spawnCount = Math.min(PELLET_REFILL_BATCH, pelletsNeeded);
 
     for (let i = 0; i < spawnCount; i += 1) {
-      const occupied = buildOccupiedSet(
+      const occupied = collectOccupiedPoints(
         collectSnakeBodies(player, opponents),
         nextPellets,
       );
       nextPellets = [
         ...nextPellets,
-        spawnPelletFast(occupied, gridSize),
+        spawnPelletFast(occupied, worldSize),
       ];
     }
   }
 
-  if (tick % 30 === 0 && nextPellets.length < PELLET_MIN) {
-    const occupied = buildOccupiedSet(
+  if (tick % 24 === 0 && nextPellets.length < PELLET_MIN) {
+    const occupied = collectOccupiedPoints(
       collectSnakeBodies(player, opponents),
       nextPellets,
     );
     nextPellets = [
       ...nextPellets,
-      spawnPelletFast(occupied, gridSize),
+      spawnPelletFast(occupied, worldSize),
     ];
   }
 
   return nextPellets;
 }
 
-export function advanceGame(state: GameState): GameState {
+export function advanceGame(
+  state: GameState,
+  input: PlayerInput = { turnLeft: false, turnRight: false },
+): GameState {
   if (state.status !== "playing") {
     return state;
   }
@@ -348,14 +338,15 @@ export function advanceGame(state: GameState): GameState {
   }
 
   let opponents = assignAiTurns(state, movingOpponentIds);
-  let player = applyPendingTurn(state.player);
-  opponents = opponents.map((opponent) => {
-    if (!opponent.alive || !movingOpponentIds.has(opponent.id)) {
-      return opponent;
-    }
-
-    return applyPendingTurn(opponent);
-  });
+  let player: Snake = {
+    ...state.player,
+    angle: applyTurnInput(
+      state.player.angle,
+      input.turnLeft,
+      input.turnRight,
+      TURN_RATE,
+    ),
+  };
 
   const allSnakes = [player, ...opponents];
   const aliveSnakes = allSnakes.filter((snake) => snake.alive);
@@ -363,31 +354,30 @@ export function advanceGame(state: GameState): GameState {
   const nextHeads = new Map<number, Position>();
   for (const snake of aliveSnakes) {
     if (snake.isPlayer || movingOpponentIds.has(snake.id)) {
-      nextHeads.set(snake.id, getNextHead(snake.body[0], snake.direction));
+      const speed = snake.isPlayer ? PLAYER_SPEED : OPPONENT_SPEED;
+      nextHeads.set(snake.id, getNextHead(snake.body[0], snake.angle, speed));
     } else {
       nextHeads.set(snake.id, snake.body[0]);
     }
   }
 
   const deadIds = resolveHeadToHead(aliveSnakes, nextHeads);
-  const headToHeadGroups = getHeadToHeadGroups(aliveSnakes, nextHeads);
   const killerMap = new Map<number, number>();
   let playerEndReason: EndReason = null;
 
-  for (const group of headToHeadGroups.values()) {
-    if (group.length < 2) {
+  for (const victim of aliveSnakes) {
+    if (!deadIds.has(victim.id)) {
       continue;
     }
 
-    for (const snake of group) {
-      if (!deadIds.has(snake.id)) {
-        continue;
-      }
-
-      const killer = findHeadToHeadKiller(snake, group, deadIds);
-      if (killer) {
-        killerMap.set(snake.id, killer.id);
-      }
+    const killer = findHeadToHeadKiller(
+      victim,
+      aliveSnakes,
+      nextHeads,
+      deadIds,
+    );
+    if (killer) {
+      killerMap.set(victim.id, killer.id);
     }
   }
 
@@ -401,7 +391,7 @@ export function advanceGame(state: GameState): GameState {
 
     const head = nextHeads.get(snake.id)!;
     const otherBodies = getOtherBodies(aliveSnakes, snake.id);
-    const endReason = detectCollision(head, otherBodies, state.gridSize);
+    const endReason = detectCollision(head, otherBodies, state.worldSize);
 
     if (endReason) {
       deadIds.add(snake.id);
@@ -503,7 +493,7 @@ export function advanceGame(state: GameState): GameState {
     player,
     opponents,
     pellets,
-    state.gridSize,
+    state.worldSize,
     anyPelletEaten,
     tick,
   );

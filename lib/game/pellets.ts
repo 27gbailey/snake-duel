@@ -1,54 +1,55 @@
-import { positionKey } from "@/lib/game/direction";
+import { PELLET_SPAWN_CLEARANCE } from "@/lib/game/constants";
+import { isTooClose } from "@/lib/game/motion";
 import type { Position } from "@/types/game";
 
-const MAX_SPAWN_ATTEMPTS = 48;
+const MAX_SPAWN_ATTEMPTS = 64;
 
-export function buildOccupiedSet(
+export function collectOccupiedPoints(
   snakeBodies: Position[][],
   pellets: Position[],
-): Set<string> {
-  const occupied = new Set<string>();
+): Position[] {
+  const occupied: Position[] = [...pellets];
 
   for (const body of snakeBodies) {
-    for (const segment of body) {
-      occupied.add(positionKey(segment));
-    }
-  }
-
-  for (const pellet of pellets) {
-    occupied.add(positionKey(pellet));
+    occupied.push(...body);
   }
 
   return occupied;
 }
 
 export function spawnPelletFast(
-  occupied: Set<string>,
-  gridSize: number,
+  occupied: Position[],
+  worldSize: number,
 ): Position {
   for (let attempt = 0; attempt < MAX_SPAWN_ATTEMPTS; attempt += 1) {
-    const x = Math.floor(Math.random() * gridSize);
-    const y = Math.floor(Math.random() * gridSize);
-    const key = `${x},${y}`;
+    const margin = PELLET_SPAWN_CLEARANCE;
+    const x = margin + Math.random() * (worldSize - margin * 2);
+    const y = margin + Math.random() * (worldSize - margin * 2);
+    const candidate = { x, y };
 
-    if (!occupied.has(key)) {
-      occupied.add(key);
-      return { x, y };
+    if (!isTooClose(candidate, occupied, PELLET_SPAWN_CLEARANCE)) {
+      occupied.push(candidate);
+      return candidate;
     }
   }
 
-  return { x: 0, y: 0 };
+  const fallback = {
+    x: worldSize / 2,
+    y: worldSize / 2,
+  };
+  occupied.push(fallback);
+  return fallback;
 }
 
 export function spawnPelletsFast(
-  occupied: Set<string>,
-  gridSize: number,
+  occupied: Position[],
+  worldSize: number,
   count: number,
 ): Position[] {
   const pellets: Position[] = [];
 
   for (let i = 0; i < count; i += 1) {
-    pellets.push(spawnPelletFast(occupied, gridSize));
+    pellets.push(spawnPelletFast(occupied, worldSize));
   }
 
   return pellets;

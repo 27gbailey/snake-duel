@@ -52,7 +52,7 @@ export default function Scoreboard({ ui, onRestart }: ScoreboardProps) {
       </button>
 
       <p className="scoreboard__build">
-        Large arena · {ARENA_VERSION} · build {BUILD_LABEL}
+        Free arena · {ARENA_VERSION} · build {BUILD_LABEL}
       </p>
     </header>
   );

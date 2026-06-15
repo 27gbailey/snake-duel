@@ -2,16 +2,14 @@ import type { Camera, GameState } from "@/types/game";
 
 export function getCameraTarget(
   state: GameState,
-  cellSize: number,
+  scale: number,
 ): Camera {
-  const canvasSize = state.viewportCells * cellSize;
-  const worldSize = state.gridSize * cellSize;
+  const canvasSize = state.viewportSize * scale;
+  const worldSize = state.worldSize * scale;
   const head = state.player.body[0];
-  const headCenterX = head.x * cellSize + cellSize / 2;
-  const headCenterY = head.y * cellSize + cellSize / 2;
 
-  let x = headCenterX - canvasSize / 2;
-  let y = headCenterY - canvasSize / 2;
+  let x = head.x * scale - canvasSize / 2;
+  let y = head.y * scale - canvasSize / 2;
 
   if (worldSize > canvasSize) {
     x = Math.max(0, Math.min(x, worldSize - canvasSize));
@@ -21,7 +19,10 @@ export function getCameraTarget(
     y = 0;
   }
 
-  return { x, y };
+  return {
+    x: x / scale,
+    y: y / scale,
+  };
 }
 
 export function smoothCamera(
@@ -33,8 +34,7 @@ export function smoothCamera(
   const dy = target.y - current.y;
   const distance = Math.hypot(dx, dy);
 
-  // Snap when far behind so the snake is never off-screen.
-  if (distance > 120) {
+  if (distance > 180) {
     return target;
   }
 
@@ -44,6 +44,6 @@ export function smoothCamera(
   };
 }
 
-export function getCamera(state: GameState, cellSize: number): Camera {
-  return getCameraTarget(state, cellSize);
+export function getCamera(state: GameState, scale: number): Camera {
+  return getCameraTarget(state, scale);
 }

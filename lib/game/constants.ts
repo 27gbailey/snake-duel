@@ -1,15 +1,25 @@
-import type { Direction, SnakeColor, Turn } from "@/types/game";
+import type { SnakeColor } from "@/types/game";
 
-export const GRID_SIZE = 120;
-export const VIEWPORT_CELLS = 26;
+export const WORLD_SIZE = 3600;
+export const VIEWPORT_SIZE = 840;
 export const TICK_MS = 100;
 export const MAX_TICKS_PER_FRAME = 2;
 export const MAX_FRAME_DELTA_MS = 50;
 export const INITIAL_SNAKE_LENGTH = 16;
-export const PELLET_TARGET = 200;
-export const PELLET_MIN = 160;
-export const PELLET_REFILL_BATCH = 15;
-export const AI_SNAKE_COUNT = 4;
+export const SEGMENT_SPACING = 14;
+export const SEGMENT_RADIUS = 7;
+export const PLAYER_SPEED = 3.8;
+export const OPPONENT_SPEED = 3.4;
+export const TURN_RATE = 0.13;
+export const HEAD_COLLISION_DIST = SEGMENT_RADIUS * 1.75;
+export const BODY_COLLISION_DIST = SEGMENT_RADIUS * 1.6;
+export const PELLET_RADIUS = 5;
+export const PELLET_EAT_DIST = 12;
+export const PELLET_SPAWN_CLEARANCE = 22;
+export const PELLET_TARGET = 500;
+export const PELLET_MIN = 400;
+export const PELLET_REFILL_BATCH = 25;
+export const AI_SNAKE_COUNT = 10;
 /** Opponents move 9 out of every 10 player ticks (~10% slower). */
 export const OPPONENT_MOVE_STEP = 9;
 export const OPPONENT_MOVE_THRESHOLD = 10;
@@ -30,27 +40,15 @@ export const AI_COLORS: SnakeColor[] = [
   { head: "#2dd4bf", body: "#14b8a6", glow: "rgba(45, 212, 191, 0.5)" },
   { head: "#f97316", body: "#ea580c", glow: "rgba(249, 115, 22, 0.5)" },
   { head: "#c084fc", body: "#a855f7", glow: "rgba(192, 132, 252, 0.5)" },
+  { head: "#34d399", body: "#10b981", glow: "rgba(52, 211, 153, 0.5)" },
+  { head: "#f87171", body: "#ef4444", glow: "rgba(248, 113, 113, 0.5)" },
 ];
 
 export const PELLET_COLOR = "#fde047";
 export const BACKGROUND_COLOR = "#1a1033";
 export const BACKGROUND_ACCENT = "#2d1b4e";
-export const GRID_LINE_COLOR = "rgba(255, 255, 255, 0.04)";
 
-export const DIRECTION_ORDER: Direction[] = [
-  "UP",
-  "UP_RIGHT",
-  "RIGHT",
-  "DOWN_RIGHT",
-  "DOWN",
-  "DOWN_LEFT",
-  "LEFT",
-  "UP_LEFT",
-];
-
-export const AI_DIRECTIONS: Direction[] = DIRECTION_ORDER;
-
-export const TURN_KEYS: Record<string, Turn> = {
+export const TURN_KEYS: Record<string, "left" | "right"> = {
   ArrowLeft: "left",
   ArrowRight: "right",
   a: "left",
@@ -62,4 +60,4 @@ export const TURN_KEYS: Record<string, Turn> = {
 export const BUILD_LABEL =
   process.env.NEXT_PUBLIC_BUILD_ID?.slice(0, 7) ?? "local";
 
-export const ARENA_VERSION = "large-arena-v7";
+export const ARENA_VERSION = "free-move-v8";

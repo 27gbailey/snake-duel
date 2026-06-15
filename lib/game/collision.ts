@@ -1,9 +1,9 @@
-import type { EndReason, Position, Snake } from "@/types/game";
 import {
-  isOutOfBounds,
-  positionKey,
-  positionsEqual,
-} from "@/lib/game/direction";
+  BODY_COLLISION_DIST,
+  HEAD_COLLISION_DIST,
+} from "@/lib/game/constants";
+import { distance, isOutOfBounds } from "@/lib/game/motion";
+import type { EndReason, Position, Snake } from "@/types/game";
 
 export function hitsOtherBody(
   head: Position,
@@ -11,7 +11,7 @@ export function hitsOtherBody(
 ): boolean {
   for (const body of otherBodies) {
     for (const segment of body.slice(1)) {
-      if (positionsEqual(head, segment)) {
+      if (distance(head, segment) < BODY_COLLISION_DIST) {
         return true;
       }
     }
@@ -23,9 +23,9 @@ export function hitsOtherBody(
 export function detectCollision(
   head: Position,
   otherBodies: Position[][],
-  gridSize: number,
+  worldSize: number,
 ): EndReason {
-  if (isOutOfBounds(head, gridSize)) {
+  if (isOutOfBounds(head, worldSize)) {
     return "wall";
   }
 
@@ -41,42 +41,33 @@ export function resolveHeadToHead(
   nextHeads: Map<number, Position>,
 ): Set<number> {
   const deadIds = new Set<number>();
-  const groups = new Map<string, Snake[]>();
+  const alive = snakes.filter((snake) => snake.alive);
 
-  for (const snake of snakes) {
-    if (!snake.alive) {
-      continue;
-    }
+  for (let i = 0; i < alive.length; i += 1) {
+    for (let j = i + 1; j < alive.length; j += 1) {
+      const snakeA = alive[i];
+      const snakeB = alive[j];
+      const headA = nextHeads.get(snakeA.id);
+      const headB = nextHeads.get(snakeB.id);
 
-    const head = nextHeads.get(snake.id);
-    if (!head) {
-      continue;
-    }
-
-    const key = positionKey(head);
-    const group = groups.get(key) ?? [];
-    group.push(snake);
-    groups.set(key, group);
-  }
-
-  for (const group of groups.values()) {
-    if (group.length < 2) {
-      continue;
-    }
-
-    const lengths = group.map((snake) => snake.body.length);
-    const maxLength = Math.max(...lengths);
-    const contenders = group.filter((snake) => snake.body.length === maxLength);
-
-    if (contenders.length > 1) {
-      for (const snake of group) {
-        deadIds.add(snake.id);
+      if (!headA || !headB) {
+        continue;
       }
-    } else {
-      for (const snake of group) {
-        if (snake.body.length < maxLength) {
-          deadIds.add(snake.id);
-        }
+
+      if (distance(headA, headB) >= HEAD_COLLISION_DIST * 2) {
+        continue;
+      }
+
+      const lengthA = snakeA.body.length;
+      const lengthB = snakeB.body.length;
+
+      if (lengthA === lengthB) {
+        deadIds.add(snakeA.id);
+        deadIds.add(snakeB.id);
+      } else if (lengthA > lengthB) {
+        deadIds.add(snakeB.id);
+      } else {
+        deadIds.add(snakeA.id);
       }
     }
   }
@@ -100,7 +91,7 @@ export function findKillerByBodyHit(
     }
 
     for (let i = 1; i < snake.body.length; i += 1) {
-      if (positionsEqual(victimHead, snake.body[i])) {
+      if (distance(victimHead, snake.body[i]) < BODY_COLLISION_DIST) {
         return snake;
       }
     }
@@ -111,42 +102,44 @@ export function findKillerByBodyHit(
 
 export function findHeadToHeadKiller(
   victim: Snake,
-  group: Snake[],
+  snakes: Snake[],
+  nextHeads: Map<number, Position>,
   deadIds: Set<number>,
 ): Snake | null {
-  const survivors = group.filter(
-    (snake) => snake.alive && !deadIds.has(snake.id),
-  );
-
-  if (survivors.length !== 1) {
+  const victimHead = nextHeads.get(victim.id);
+  if (!victimHead) {
     return null;
   }
 
-  const winner = survivors[0];
-  return winner.id === victim.id ? null : winner;
-}
-
-export function getHeadToHeadGroups(
-  snakes: Snake[],
-  nextHeads: Map<number, Position>,
-): Map<string, Snake[]> {
-  const groups = new Map<string, Snake[]>();
-
   for (const snake of snakes) {
-    if (!snake.alive) {
+    if (
+      snake.id === victim.id ||
+      !snake.alive ||
+      deadIds.has(snake.id)
+    ) {
       continue;
     }
 
-    const head = nextHeads.get(snake.id);
-    if (!head) {
+    const otherHead = nextHeads.get(snake.id);
+    if (!otherHead) {
       continue;
     }
 
-    const key = positionKey(head);
-    const group = groups.get(key) ?? [];
-    group.push(snake);
-    groups.set(key, group);
+    if (distance(victimHead, otherHead) >= HEAD_COLLISION_DIST * 2) {
+      continue;
+    }
+
+    if (snake.body.length > victim.body.length) {
+      return snake;
+    }
+
+    if (
+      snake.body.length === victim.body.length &&
+      snake.id !== victim.id
+    ) {
+      return null;
+    }
   }
 
-  return groups;
+  return null;
 }

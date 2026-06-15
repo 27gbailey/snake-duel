@@ -1,13 +1,3 @@
-export type Direction =
-  | "UP"
-  | "DOWN"
-  | "LEFT"
-  | "RIGHT"
-  | "UP_LEFT"
-  | "UP_RIGHT"
-  | "DOWN_LEFT"
-  | "DOWN_RIGHT";
-
 export type Turn = "left" | "right";
 
 export type Position = {
@@ -24,12 +14,11 @@ export type SnakeColor = {
 export type Snake = {
   id: number;
   body: Position[];
-  direction: Direction;
+  angle: number;
   score: number;
   alive: boolean;
   isPlayer: boolean;
   color: SnakeColor;
-  pendingTurn: Turn | null;
   moveAccumulator: number;
 };
 
@@ -42,9 +31,14 @@ export type Camera = {
   y: number;
 };
 
+export type PlayerInput = {
+  turnLeft: boolean;
+  turnRight: boolean;
+};
+
 export type GameState = {
-  gridSize: number;
-  viewportCells: number;
+  worldSize: number;
+  viewportSize: number;
   player: Snake;
   opponents: Snake[];
   pellets: Position[];

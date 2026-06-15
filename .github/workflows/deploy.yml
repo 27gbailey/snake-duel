@@ -35,7 +35,7 @@ jobs:
         env:
           GITHUB_PAGES: "true"
           NEXT_PUBLIC_BUILD_ID: ${{ github.sha }}
-          ARENA_VERSION: large-arena-v7
+          ARENA_VERSION: free-move-v8
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
