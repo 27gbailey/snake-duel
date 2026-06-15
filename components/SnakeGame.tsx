@@ -1,31 +1,25 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  PLAYER_1_KEYS,
-  PLAYER_2_KEYS,
-  TICK_MS,
-} from "@/lib/game/constants";
+import { TICK_MS, TURN_KEYS } from "@/lib/game/constants";
 import {
   advanceGame,
-  beginPlaying,
   createInitialGameState,
-  setPlayerDirection,
+  setPlayerTurn,
 } from "@/lib/game/gameEngine";
 import {
   drawGame,
   getCanvasSize,
   getCellSize,
 } from "@/lib/game/renderer";
-import type { GameMode, GameState } from "@/types/game";
+import type { GameState } from "@/types/game";
 import Scoreboard from "./Scoreboard";
 
 export default function SnakeGame() {
-  const [mode, setMode] = useState<GameMode>("coop");
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const gameStateRef = useRef<GameState>(createInitialGameState("coop"));
-  const [gameState, setGameState] = useState<GameState>(createInitialGameState("coop"));
+  const gameStateRef = useRef<GameState>(createInitialGameState());
+  const [gameState, setGameState] = useState<GameState>(createInitialGameState());
   const [cellSize, setCellSize] = useState(16);
 
   const syncState = useCallback((state: GameState) => {
@@ -34,16 +28,8 @@ export default function SnakeGame() {
   }, []);
 
   const handleRestart = useCallback(() => {
-    syncState(createInitialGameState(mode));
-  }, [mode, syncState]);
-
-  const handleModeChange = useCallback(
-    (nextMode: GameMode) => {
-      setMode(nextMode);
-      syncState(createInitialGameState(nextMode));
-    },
-    [syncState],
-  );
+    syncState(createInitialGameState());
+  }, [syncState]);
 
   useEffect(() => {
     const resize = () => {
@@ -60,22 +46,15 @@ export default function SnakeGame() {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      const key = event.key;
-      const state = gameStateRef.current;
-      let nextState = state;
-
-      if (PLAYER_1_KEYS[key]) {
-        event.preventDefault();
-        nextState = setPlayerDirection(state, 1, PLAYER_1_KEYS[key]);
-      } else if (state.mode === "coop" && PLAYER_2_KEYS[key]) {
-        event.preventDefault();
-        nextState = setPlayerDirection(state, 2, PLAYER_2_KEYS[key]);
-      } else if (state.mode === "solo" && PLAYER_2_KEYS[key]) {
-        event.preventDefault();
-        nextState = setPlayerDirection(state, 1, PLAYER_2_KEYS[key]);
+      const turn = TURN_KEYS[event.key];
+      if (!turn) {
+        return;
       }
 
-      if (nextState !== state) {
+      event.preventDefault();
+      const nextState = setPlayerTurn(gameStateRef.current, turn);
+
+      if (nextState !== gameStateRef.current) {
         syncState(nextState);
       }
     };
@@ -83,32 +62,6 @@ export default function SnakeGame() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [syncState]);
-
-  useEffect(() => {
-    if (gameState.status !== "countdown") {
-      return;
-    }
-
-    const timer = window.setInterval(() => {
-      const current = gameStateRef.current;
-      if (current.status !== "countdown") {
-        return;
-      }
-
-      if (current.countdown <= 1) {
-        syncState(beginPlaying(current));
-        return;
-      }
-
-      syncState({
-        ...current,
-        countdown: current.countdown - 1,
-        message: `Starting in ${current.countdown - 1}...`,
-      });
-    }, 1000);
-
-    return () => window.clearInterval(timer);
-  }, [gameState.status, syncState]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -135,13 +88,14 @@ export default function SnakeGame() {
   }, [gameState, cellSize]);
 
   const { width, height } = getCanvasSize(cellSize);
+  const rivalsAlive = gameState.opponents.filter((opponent) => opponent.alive).length;
 
   return (
     <div className="game">
       <Scoreboard
         gameState={gameState}
+        rivalsAlive={rivalsAlive}
         onRestart={handleRestart}
-        onModeChange={handleModeChange}
       />
 
       <div ref={containerRef} className="game__canvas-wrap">
@@ -150,31 +104,12 @@ export default function SnakeGame() {
           width={width}
           height={height}
           className="game__canvas"
-          aria-label={
-            gameState.mode === "solo"
-              ? "Single-player snake game board"
-              : "Co-op snake game board"
-          }
+          aria-label="Snake.IO style arena"
         />
-        {gameState.status === "countdown" && gameState.countdown > 0 && (
-          <div className="game__countdown" aria-live="polite">
-            {gameState.countdown}
-          </div>
-        )}
       </div>
 
       <p className="game__hint">
-        {gameState.mode === "solo" ? (
-          <>
-            Controls: <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or Arrow keys
-            · Eat turrets for +3 points
-          </>
-        ) : (
-          <>
-            P1: <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>
-            · P2: Arrow keys · Co-op — eat turrets together (+3)
-          </>
-        )}
+        Steer with <kbd>←</kbd> <kbd>→</kbd> — you always move forward. Circle rivals so they crash into your body and steal their points.
       </p>
     </div>
   );

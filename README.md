@@ -1,15 +1,15 @@
-# Snake Duel
+# Snake.IO
 
-A two-player Snake game built with Next.js, TypeScript, and HTML5 Canvas.
+A single-player Snake.IO-style arena built with Next.js, TypeScript, and HTML5 Canvas.
 
 ## Features
 
-- **50×50 grid** with wall, self, and snake-to-snake collisions
-- **Head-to-head draw** when both snakes collide at the same cell
-- **Shared keyboard**: Player 1 uses WASD, Player 2 uses arrow keys
-- **Scoreboard** with per-player scores and game-over messaging
-- **Restart button** to reset the match
-- **Responsive layout** — canvas scales to fit the viewport
+- **Always forward** — your snake never stops; you only steer
+- **Arrow key turning** — `←` and `→` rotate your head left or right
+- **Rival snakes** — AI opponents roam the arena
+- **Trap to score** — force rivals into your body (or walls) to steal their points
+- **Pellets** — eat glowing pellets to grow; dead snakes drop mass you can absorb
+- **50×50 arena** with responsive canvas scaling
 
 ## Getting Started
 
@@ -18,71 +18,28 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open [http://localhost:3000](http://localhost:3000).
 
 ## Controls
 
-| Player   | Keys        |
-|----------|-------------|
-| Player 1 | W A S D     |
-| Player 2 | Arrow keys  |
+| Key | Action |
+|-----|--------|
+| `←` | Turn left |
+| `→` | Turn right |
 
 ## Project Structure
 
 ```
 types/game.ts           — Shared TypeScript types
-lib/game/constants.ts   — Grid size, colors, key bindings
-lib/game/direction.ts   — Movement and position helpers
-lib/game/collision.ts   — Collision detection logic
+lib/game/constants.ts   — Grid size, colors, tuning
+lib/game/direction.ts   — Movement and turning helpers
+lib/game/collision.ts   — Collision and head-to-head logic
+lib/game/ai.ts          — Rival snake steering
 lib/game/gameEngine.ts  — Game state and tick advancement
 lib/game/renderer.ts    — Canvas drawing
 components/SnakeGame.tsx — Main game component
 components/Scoreboard.tsx — Score display and restart
 ```
-
-## Deploy
-
-The project is configured for static export and GitHub Pages.
-
-### Option A: GitHub Pages (recommended)
-
-1. Authenticate with GitHub (one-time):
-
-```bash
-gh auth login
-```
-
-2. Run the deploy script:
-
-```bash
-chmod +x scripts/deploy.sh
-./scripts/deploy.sh
-```
-
-Your game will be live at `https://<your-username>.github.io/snake-duel/` after the GitHub Actions workflow finishes.
-
-### Option B: Vercel
-
-```bash
-npm install
-npx vercel login
-npx vercel --prod
-```
-
-Vercel does not require the `GITHUB_PAGES` base path. For Vercel deploys, build with:
-
-```bash
-npm run build
-```
-
-### Manual build
-
-```bash
-npm install
-GITHUB_PAGES=true npm run build
-```
-
-Static files are written to `out/`.
 
 ## Scripts
 

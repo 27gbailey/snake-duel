@@ -1,23 +1,33 @@
-import type { EndReason, PlayerId, Position } from "@/types/game";
-import { isOutOfBounds, positionsEqual } from "@/lib/game/direction";
+import type { EndReason, Position, Snake } from "@/types/game";
+import {
+  isOutOfBounds,
+  positionKey,
+  positionsEqual,
+} from "@/lib/game/direction";
 
 export function isSelfCollision(head: Position, body: Position[]): boolean {
   return body.some((segment) => positionsEqual(head, segment));
 }
 
-export function isSnakeCollision(
+export function hitsOtherBody(
   head: Position,
-  otherSnake: Position[],
-  includeHead: boolean,
+  otherBodies: Position[][],
 ): boolean {
-  const segments = includeHead ? otherSnake : otherSnake.slice(1);
-  return segments.some((segment) => positionsEqual(head, segment));
+  for (const body of otherBodies) {
+    for (const segment of body.slice(1)) {
+      if (positionsEqual(head, segment)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
 export function detectCollision(
   head: Position,
   ownBody: Position[],
-  otherSnake: Position[],
+  otherBodies: Position[][],
   gridSize: number,
 ): EndReason {
   if (isOutOfBounds(head, gridSize)) {
@@ -28,22 +38,64 @@ export function detectCollision(
     return "self";
   }
 
-  if (isSnakeCollision(head, otherSnake, true)) {
+  if (hitsOtherBody(head, otherBodies)) {
     return "snake";
   }
 
   return null;
 }
 
-export function isHeadToHead(
-  head1: Position,
-  head2: Position,
-): boolean {
-  return positionsEqual(head1, head2);
+export function resolveHeadToHead(
+  snakes: Snake[],
+  nextHeads: Map<number, Position>,
+): Set<number> {
+  const deadIds = new Set<number>();
+  const groups = new Map<string, Snake[]>();
+
+  for (const snake of snakes) {
+    if (!snake.alive) {
+      continue;
+    }
+
+    const head = nextHeads.get(snake.id);
+    if (!head) {
+      continue;
+    }
+
+    const key = positionKey(head);
+    const group = groups.get(key) ?? [];
+    group.push(snake);
+    groups.set(key, group);
+  }
+
+  for (const group of groups.values()) {
+    if (group.length < 2) {
+      continue;
+    }
+
+    const lengths = group.map((snake) => snake.body.length);
+    const maxLength = Math.max(...lengths);
+    const contenders = group.filter((snake) => snake.body.length === maxLength);
+
+    if (contenders.length > 1) {
+      for (const snake of group) {
+        deadIds.add(snake.id);
+      }
+    } else {
+      for (const snake of group) {
+        if (snake.body.length < maxLength) {
+          deadIds.add(snake.id);
+        }
+      }
+    }
+  }
+
+  return deadIds;
 }
 
-export function getAlivePlayers(
-  alive: Record<PlayerId, boolean>,
-): PlayerId[] {
-  return ([1, 2] as PlayerId[]).filter((id) => alive[id]);
+export function diedOnPlayerBody(
+  head: Position,
+  playerBody: Position[],
+): boolean {
+  return playerBody.slice(1).some((segment) => positionsEqual(head, segment));
 }

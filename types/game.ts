@@ -1,70 +1,40 @@
 export type Direction = "UP" | "DOWN" | "LEFT" | "RIGHT";
 
-export type GameMode = "solo" | "coop";
+export type Turn = "left" | "right";
 
 export type Position = {
   x: number;
   y: number;
 };
 
-export type PlayerId = 1 | 2;
-
-export type GameStatus = "countdown" | "playing" | "ended";
-
-export type EndReason =
-  | "wall"
-  | "self"
-  | "snake"
-  | "head-to-head"
-  | "bullet"
-  | "enemy"
-  | null;
-
-export type EnemyKind = "hunter" | "patroller" | "striker" | "warden";
-
-export type AttackKind = "shot" | "spread" | "burst" | "beam";
-
-export type Enemy = {
-  id: number;
-  kind: EnemyKind;
-  position: Position;
-  direction: Direction;
-  moveCooldown: number;
-  attackCooldown: number;
+export type SnakeColor = {
+  head: string;
+  body: string;
+  glow: string;
 };
 
-export type Bullet = {
+export type Snake = {
   id: number;
-  position: Position;
+  body: Position[];
   direction: Direction;
-  kind: AttackKind;
-  speed: number;
-  ttl?: number;
-};
-
-export type PlayerState = {
-  snake: Position[];
-  direction: Direction;
-  nextDirection: Direction;
   score: number;
   alive: boolean;
-  endReason: EndReason;
+  isPlayer: boolean;
+  color: SnakeColor;
+  pendingTurn: Turn | null;
 };
+
+export type GameStatus = "playing" | "ended";
+
+export type EndReason = "wall" | "self" | "snake" | "head-to-head" | null;
 
 export type GameState = {
   gridSize: number;
-  mode: GameMode;
-  players: Record<PlayerId, PlayerState>;
-  food: Position[];
-  enemies: Enemy[];
-  bullets: Bullet[];
-  tick: number;
-  nextBulletId: number;
-  nextEnemyId: number;
+  player: Snake;
+  opponents: Snake[];
+  pellets: Position[];
   status: GameStatus;
-  countdown: number;
-  winner: PlayerId | "draw" | null;
   message: string;
+  tick: number;
+  nextSnakeId: number;
 };
-
-export type KeyBindings = Record<string, Direction>;

@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Snake Duel",
-  description: "Two-player Snake game built with Next.js and Canvas",
+  title: "Snake.IO",
+  description: "Single-player Snake.IO arena — trap rivals and steal their points",
 };
 
 export default function RootLayout({

@@ -1,74 +1,44 @@
 import {
-  COUNTDOWN_SECONDS,
-  ENEMY_COUNT,
-  ENEMY_EAT_SCORE,
-  FOOD_COUNT,
+  AI_COLORS,
+  AI_SNAKE_COUNT,
   GRID_SIZE,
+  INITIAL_SNAKE_LENGTH,
+  PELLET_COUNT,
+  PLAYER_COLOR,
+  PLAYER_ID,
 } from "@/lib/game/constants";
 import {
+  assignAiTurns,
+  applyPendingTurn,
+} from "@/lib/game/ai";
+import {
   detectCollision,
-  getAlivePlayers,
+  diedOnPlayerBody,
+  resolveHeadToHead,
 } from "@/lib/game/collision";
 import {
-  advanceBullets,
-  advanceEnemies,
-  createInitialEnemies,
-  findEnemyAt,
-  fireEnemyAttacks,
-  getBulletHits,
-  getOccupiedCells,
-  removeHitBullets,
-  spawnReplacementEnemy,
-} from "@/lib/game/enemies";
-import {
   getNextHead,
-  isOppositeDirection,
+  positionKey,
   positionsEqual,
 } from "@/lib/game/direction";
 import type {
   Direction,
-  GameMode,
+  EndReason,
   GameState,
-  PlayerId,
-  PlayerState,
   Position,
+  Snake,
+  Turn,
 } from "@/types/game";
 
-function createInactivePlayer(): PlayerState {
-  return {
-    snake: [],
-    direction: "RIGHT",
-    nextDirection: "RIGHT",
-    score: 0,
-    alive: false,
-    endReason: null,
-  };
-}
-
-function getActivePlayerIds(mode: GameMode): PlayerId[] {
-  return mode === "solo" ? [1] : [1, 2];
-}
-
-function isCoop(mode: GameMode): boolean {
-  return mode === "coop";
-}
-
-function getStartMessage(mode: GameMode): string {
-  if (mode === "solo") {
-    return "Solo — eat fruit and turrets to score";
-  }
-
-  return "Co-op — work together, eat turrets for bonus points";
-}
-
-function createInitialSnake(
+function createSnakeBody(
   startX: number,
   startY: number,
   direction: Direction,
+  length: number,
 ): Position[] {
   const body: Position[] = [{ x: startX, y: startY }];
 
-  for (let i = 1; i <= 2; i++) {
+  for (let i = 1; i < length; i += 1) {
     switch (direction) {
       case "RIGHT":
         body.push({ x: startX - i, y: startY });
@@ -88,186 +58,210 @@ function createInitialSnake(
   return body;
 }
 
-function createPlayer(
+function createSnake(
+  id: number,
   startX: number,
   startY: number,
   direction: Direction,
-): PlayerState {
+  isPlayer: boolean,
+  colorIndex: number,
+): Snake {
+  const body = createSnakeBody(startX, startY, direction, INITIAL_SNAKE_LENGTH);
+
   return {
-    snake: createInitialSnake(startX, startY, direction),
+    id,
+    body,
     direction,
-    nextDirection: direction,
-    score: 0,
+    score: body.length,
     alive: true,
-    endReason: null,
+    isPlayer,
+    color: isPlayer ? PLAYER_COLOR : AI_COLORS[colorIndex % AI_COLORS.length],
+    pendingTurn: null,
   };
 }
 
-export function createInitialGameState(mode: GameMode = "coop"): GameState {
-  const mid = Math.floor(GRID_SIZE / 2);
+function getOccupiedCells(
+  player: Snake,
+  opponents: Snake[],
+  pellets: Position[],
+): Set<string> {
+  const occupied = new Set<string>();
 
-  const players =
-    mode === "solo"
-      ? {
-          1: createPlayer(mid, mid, "RIGHT"),
-          2: createInactivePlayer(),
-        }
-      : {
-          1: createPlayer(4, mid, "RIGHT"),
-          2: createPlayer(GRID_SIZE - 5, mid, "LEFT"),
-        };
+  for (const segment of player.body) {
+    occupied.add(positionKey(segment));
+  }
 
-  const enemies = createInitialEnemies(players, mode, GRID_SIZE);
+  for (const opponent of opponents) {
+    if (!opponent.alive) {
+      continue;
+    }
 
-  return {
-    gridSize: GRID_SIZE,
-    mode,
-    players,
-    food: spawnFoods(players, enemies, GRID_SIZE, FOOD_COUNT),
-    enemies,
-    bullets: [],
-    tick: 0,
-    nextBulletId: 0,
-    nextEnemyId: ENEMY_COUNT,
-    status: "countdown",
-    countdown: COUNTDOWN_SECONDS,
-    winner: null,
-    message: "Get ready...",
-  };
-}
+    for (const segment of opponent.body) {
+      occupied.add(positionKey(segment));
+    }
+  }
 
-export function beginPlaying(state: GameState): GameState {
-  return {
-    ...state,
-    status: "playing",
-    countdown: 0,
-    message: getStartMessage(state.mode),
-  };
+  for (const pellet of pellets) {
+    occupied.add(positionKey(pellet));
+  }
+
+  return occupied;
 }
 
 function getFreeCells(
-  players: Record<PlayerId, PlayerState>,
-  enemies: GameState["enemies"],
+  player: Snake,
+  opponents: Snake[],
+  pellets: Position[],
   gridSize: number,
-  existingFood: Position[] = [],
 ): Position[] {
-  const occupied = getOccupiedCells(players, enemies);
+  const occupied = getOccupiedCells(player, opponents, pellets);
+  const free: Position[] = [];
 
-  for (const fruit of existingFood) {
-    occupied.add(`${fruit.x},${fruit.y}`);
-  }
-
-  const freeCells: Position[] = [];
-
-  for (let y = 0; y < gridSize; y++) {
-    for (let x = 0; x < gridSize; x++) {
+  for (let y = 0; y < gridSize; y += 1) {
+    for (let x = 0; x < gridSize; x += 1) {
       if (!occupied.has(`${x},${y}`)) {
-        freeCells.push({ x, y });
+        free.push({ x, y });
       }
     }
   }
 
-  return freeCells;
+  return free;
 }
 
-export function spawnFood(
-  players: Record<PlayerId, PlayerState>,
-  enemies: GameState["enemies"],
+function spawnPellet(
+  player: Snake,
+  opponents: Snake[],
+  pellets: Position[],
   gridSize: number,
-  existingFood: Position[] = [],
 ): Position {
-  const freeCells = getFreeCells(players, enemies, gridSize, existingFood);
+  const free = getFreeCells(player, opponents, pellets, gridSize);
 
-  if (freeCells.length === 0) {
+  if (free.length === 0) {
     return { x: 0, y: 0 };
   }
 
-  const index = Math.floor(Math.random() * freeCells.length);
-  return freeCells[index];
+  return free[Math.floor(Math.random() * free.length)];
 }
 
-export function spawnFoods(
-  players: Record<PlayerId, PlayerState>,
-  enemies: GameState["enemies"],
-  gridSize: number,
+function spawnPellets(
+  player: Snake,
+  opponents: Snake[],
   count: number,
+  gridSize: number,
 ): Position[] {
-  const foods: Position[] = [];
+  const pellets: Position[] = [];
 
   for (let i = 0; i < count; i += 1) {
-    foods.push(spawnFood(players, enemies, gridSize, foods));
+    pellets.push(spawnPellet(player, opponents, pellets, gridSize));
   }
 
-  return foods;
+  return pellets;
 }
 
-export function setPlayerDirection(
+const AI_SPAWN_POINTS: Array<{
+  x: number;
+  y: number;
+  direction: Direction;
+}> = [
+  { x: 8, y: 8, direction: "RIGHT" },
+  { x: 41, y: 8, direction: "LEFT" },
+  { x: 8, y: 41, direction: "RIGHT" },
+  { x: 41, y: 41, direction: "LEFT" },
+  { x: 25, y: 6, direction: "DOWN" },
+  { x: 25, y: 43, direction: "UP" },
+  { x: 6, y: 25, direction: "RIGHT" },
+  { x: 43, y: 25, direction: "LEFT" },
+];
+
+function createOpponents(nextSnakeId: number): { opponents: Snake[]; nextId: number } {
+  const opponents: Snake[] = [];
+  let nextId = nextSnakeId;
+
+  for (let i = 0; i < AI_SNAKE_COUNT; i += 1) {
+    const spawn = AI_SPAWN_POINTS[i % AI_SPAWN_POINTS.length];
+    opponents.push(
+      createSnake(nextId, spawn.x, spawn.y, spawn.direction, false, i),
+    );
+    nextId += 1;
+  }
+
+  return { opponents, nextId };
+}
+
+function spawnReplacementOpponent(
   state: GameState,
-  playerId: PlayerId,
-  direction: Direction,
-): GameState {
-  if (state.status !== "playing" && state.status !== "countdown") {
-    return state;
-  }
+): { opponent: Snake; nextSnakeId: number } {
+  const spawn =
+    AI_SPAWN_POINTS[Math.floor(Math.random() * AI_SPAWN_POINTS.length)];
+  const colorIndex = state.opponents.length + state.tick;
 
-  if (!state.players[playerId].alive) {
-    return state;
-  }
+  const opponent = createSnake(
+    state.nextSnakeId,
+    spawn.x,
+    spawn.y,
+    spawn.direction,
+    false,
+    colorIndex,
+  );
 
-  const player = state.players[playerId];
+  return {
+    opponent,
+    nextSnakeId: state.nextSnakeId + 1,
+  };
+}
 
-  if (isOppositeDirection(player.direction, direction)) {
+export function createInitialGameState(): GameState {
+  const player = createSnake(PLAYER_ID, 25, 25, "RIGHT", true, 0);
+  const { opponents, nextId } = createOpponents(1);
+  const pellets = spawnPellets(player, opponents, PELLET_COUNT, GRID_SIZE);
+
+  return {
+    gridSize: GRID_SIZE,
+    player,
+    opponents,
+    pellets,
+    status: "playing",
+    message: "Arrow keys turn your head — trap rivals for their points",
+    tick: 0,
+    nextSnakeId: nextId,
+  };
+}
+
+export function setPlayerTurn(state: GameState, turn: Turn): GameState {
+  if (state.status !== "playing" || !state.player.alive) {
     return state;
   }
 
   return {
     ...state,
-    players: {
-      ...state.players,
-      [playerId]: {
-        ...player,
-        nextDirection: direction,
-      },
+    player: {
+      ...state.player,
+      pendingTurn: turn,
     },
   };
 }
 
-function buildEndMessage(
-  players: Record<PlayerId, PlayerState>,
-  mode: GameMode,
-): string {
-  if (mode === "solo") {
-    const player = players[1];
-    const reason =
-      player.endReason === "wall"
-        ? "Hit the wall!"
-        : player.endReason === "self"
-          ? "Bit yourself!"
-          : player.endReason === "bullet"
-            ? "Hit by a bullet!"
-            : "";
+function advanceSnakeBody(
+  snake: Snake,
+  nextHead: Position,
+  grows: boolean,
+): Position[] {
+  const newBody = [nextHead, ...snake.body];
 
-    return reason
-      ? `Game over! Score: ${player.score} — ${reason}`
-      : `Game over! Score: ${player.score}`;
+  if (!grows) {
+    newBody.pop();
   }
 
-  const teamScore = players[1].score + players[2].score;
-
-  if (players[1].endReason === "bullet" || players[2].endReason === "bullet") {
-    return `Team eliminated! Team score: ${teamScore}`;
-  }
-
-  return `Game over! Team score: ${teamScore}`;
+  return newBody;
 }
 
-function finalizeGame(state: GameState): GameState {
-  return {
-    ...state,
-    status: "ended",
-    winner: null,
-    message: buildEndMessage(state.players, state.mode),
-  };
+function getOtherBodies(
+  snakes: Snake[],
+  snakeId: number,
+): Position[][] {
+  return snakes
+    .filter((snake) => snake.id !== snakeId && snake.alive)
+    .map((snake) => snake.body);
 }
 
 export function advanceGame(state: GameState): GameState {
@@ -276,196 +270,162 @@ export function advanceGame(state: GameState): GameState {
   }
 
   const tick = state.tick + 1;
-  const activeIds = getActivePlayerIds(state.mode);
-  let players = { ...state.players };
+  let opponents = assignAiTurns(state);
+  let player = applyPendingTurn(state.player);
+  opponents = opponents.map(applyPendingTurn);
 
-  let enemies = advanceEnemies(state.enemies, players, state.mode, state.gridSize);
-  let nextEnemyId = state.nextEnemyId;
+  const allSnakes = [player, ...opponents];
+  const aliveSnakes = allSnakes.filter((snake) => snake.alive);
 
-  const attackResult = fireEnemyAttacks(
-    enemies,
-    players,
-    state.mode,
-    state.gridSize,
-    state.nextBulletId,
-  );
-  enemies = attackResult.enemies;
+  const nextHeads = new Map<number, Position>();
+  for (const snake of aliveSnakes) {
+    nextHeads.set(snake.id, getNextHead(snake.body[0], snake.direction));
+  }
 
-  let bullets = advanceBullets(
-    [...state.bullets, ...attackResult.bullets],
-    state.gridSize,
-  );
-  const nextBulletId = attackResult.nextBulletId;
-  const bulletHits = getBulletHits(bullets, players, state.mode);
+  const deadIds = resolveHeadToHead(aliveSnakes, nextHeads);
+  let playerEndReason: EndReason = null;
 
-  if (bulletHits.length > 0) {
-    const hitBulletIds = new Set<number>();
-
-    for (const hit of bulletHits) {
-      hitBulletIds.add(hit.bulletId);
-      if (players[hit.playerId].alive) {
-        players = {
-          ...players,
-          [hit.playerId]: {
-            ...players[hit.playerId],
-            alive: false,
-            endReason: "bullet",
-          },
-        };
+  for (const snake of aliveSnakes) {
+    if (deadIds.has(snake.id)) {
+      if (snake.isPlayer) {
+        playerEndReason = "head-to-head";
       }
-    }
-
-    bullets = removeHitBullets(bullets, hitBulletIds);
-  }
-
-  const nextHeads: Record<PlayerId, Position> = { 1: { x: 0, y: 0 }, 2: { x: 0, y: 0 } };
-  const ateFood: Record<PlayerId, boolean> = { 1: false, 2: false };
-  const ateEnemy: Record<PlayerId, boolean> = { 1: false, 2: false };
-
-  for (const id of activeIds) {
-    const player = players[id];
-
-    if (!player.alive) {
-      nextHeads[id] = player.snake[0] ?? { x: 0, y: 0 };
       continue;
     }
 
-    const direction = player.nextDirection;
-    const head = player.snake[0];
-    const nextHead = getNextHead(head, direction);
-    nextHeads[id] = nextHead;
-  }
-
-  for (const id of activeIds) {
-    const player = players[id];
-
-    if (!player.alive) {
-      continue;
-    }
-
-    const direction = player.nextDirection;
-    const body = player.snake;
-    const otherSnake = isCoop(state.mode) ? [] : players[id === 1 ? 2 : 1].snake;
-    const nextHead = nextHeads[id];
-
-    const endReason = detectCollision(
-      nextHead,
-      body,
-      otherSnake,
-      state.gridSize,
-    );
+    const head = nextHeads.get(snake.id)!;
+    const otherBodies = getOtherBodies(aliveSnakes, snake.id);
+    const endReason = detectCollision(head, snake.body, otherBodies, state.gridSize);
 
     if (endReason) {
-      players[id] = {
-        ...player,
-        alive: false,
-        endReason,
-      };
+      deadIds.add(snake.id);
+      if (snake.isPlayer) {
+        playerEndReason = endReason;
+      }
+    }
+  }
+
+  let pellets = [...state.pellets];
+  let scoreGain = 0;
+  let nextSnakeId = state.nextSnakeId;
+  const deadOpponents: Snake[] = [];
+
+  for (const opponent of opponents) {
+    if (!opponent.alive) {
       continue;
     }
 
-    const eatenEnemyIndex = findEnemyAt(enemies, nextHead);
-    const willEatEnemy = eatenEnemyIndex >= 0;
-    const eatenFoodIndex = state.food.findIndex((fruit) => positionsEqual(fruit, nextHead));
-    const willEatFood = eatenFoodIndex >= 0;
-    const willGrow = willEatEnemy || willEatFood;
-
-    ateFood[id] = willEatFood;
-    ateEnemy[id] = willEatEnemy;
-
-    if (willEatEnemy) {
-      const withoutEaten = enemies.filter((_, index) => index !== eatenEnemyIndex);
-      const replacement = spawnReplacementEnemy(
-        players,
-        state.mode,
-        state.gridSize,
-        withoutEaten,
-        nextEnemyId,
-      );
-      enemies = [...withoutEaten, replacement.enemy];
-      nextEnemyId = replacement.nextEnemyId;
+    if (!deadIds.has(opponent.id)) {
+      continue;
     }
 
-    const newSnake = [nextHead, ...body];
-    if (!willGrow) {
-      newSnake.pop();
+    const head = nextHeads.get(opponent.id)!;
+    deadOpponents.push(opponent);
+
+    if (player.alive && diedOnPlayerBody(head, player.body)) {
+      scoreGain += opponent.score;
+    } else if (player.alive) {
+      scoreGain += Math.max(2, Math.floor(opponent.score / 2));
     }
 
-    let scoreGain = 0;
-    if (willEatFood) {
+    for (const segment of opponent.body) {
+      pellets.push(segment);
+    }
+  }
+
+  const playerDead = deadIds.has(player.id);
+  opponents = opponents.map((opponent) =>
+    deadIds.has(opponent.id) ? { ...opponent, alive: false } : opponent,
+  );
+
+  if (!playerDead) {
+    const nextHead = nextHeads.get(player.id)!;
+    const pelletIndex = pellets.findIndex((pellet) =>
+      positionsEqual(pellet, nextHead),
+    );
+    const eatsPellet = pelletIndex >= 0;
+
+    if (eatsPellet) {
+      pellets = pellets.filter((_, index) => index !== pelletIndex);
       scoreGain += 1;
     }
-    if (willEatEnemy) {
-      scoreGain += ENEMY_EAT_SCORE;
-    }
 
-    players[id] = {
+    player = {
       ...player,
-      snake: newSnake,
-      direction,
-      nextDirection: direction,
+      body: advanceSnakeBody(player, nextHead, eatsPellet),
       score: player.score + scoreGain,
     };
+  } else {
+    player = { ...player, alive: false };
   }
 
-  const aliveAfterMove = getAlivePlayers({
-    1: players[1].alive,
-    2: players[2].alive,
+  opponents = opponents.map((opponent) => {
+    if (!opponent.alive || deadIds.has(opponent.id)) {
+      return opponent;
+    }
+
+    const nextHead = nextHeads.get(opponent.id)!;
+    const pelletIndex = pellets.findIndex((pellet) =>
+      positionsEqual(pellet, nextHead),
+    );
+    const eatsPellet = pelletIndex >= 0;
+
+    if (eatsPellet) {
+      pellets = pellets.filter((_, index) => index !== pelletIndex);
+    }
+
+    return {
+      ...opponent,
+      body: advanceSnakeBody(opponent, nextHead, eatsPellet),
+      score: eatsPellet ? opponent.score + 1 : opponent.score,
+    };
   });
 
-  if (state.mode === "solo" && !players[1].alive) {
-    return finalizeGame({
+  for (const _deadOpponent of deadOpponents) {
+    const replacement = spawnReplacementOpponent({
       ...state,
-      players,
-      enemies,
-      bullets,
-      tick,
-      nextBulletId,
-      nextEnemyId,
+      opponents,
+      nextSnakeId,
     });
+    opponents = [...opponents, replacement.opponent];
+    nextSnakeId = replacement.nextSnakeId;
   }
 
-  if (isCoop(state.mode) && aliveAfterMove.length === 0) {
-    return finalizeGame({
-      ...state,
-      players,
-      enemies,
-      bullets,
-      tick,
-      nextBulletId,
-      nextEnemyId,
-    });
+  while (pellets.length < PELLET_COUNT) {
+    pellets = [...pellets, spawnPellet(player, opponents, pellets, state.gridSize)];
   }
 
-  let food = state.food;
+  if (playerDead) {
+    const reasonText =
+      playerEndReason === "wall"
+        ? "Hit the arena wall!"
+        : playerEndReason === "self"
+          ? "You ran into yourself!"
+          : playerEndReason === "snake"
+            ? "You crashed into a rival!"
+            : playerEndReason === "head-to-head"
+              ? "Head-to-head crash!"
+              : "You crashed!";
 
-  if (activeIds.some((id) => ateFood[id])) {
-    const eatenPositions = new Set<string>();
-
-    for (const id of activeIds) {
-      if (!ateFood[id]) {
-        continue;
-      }
-
-      const head = players[id].snake[0];
-      eatenPositions.add(`${head.x},${head.y}`);
-    }
-
-    food = food.filter((fruit) => !eatenPositions.has(`${fruit.x},${fruit.y}`));
-
-    while (food.length < FOOD_COUNT) {
-      food = [...food, spawnFood(players, enemies, state.gridSize, food)];
-    }
+    return {
+      ...state,
+      player,
+      opponents,
+      pellets,
+      tick,
+      nextSnakeId,
+      status: "ended",
+      message: `Game over — Score: ${player.score}. ${reasonText}`,
+    };
   }
 
   return {
     ...state,
-    players,
-    enemies,
-    food,
-    bullets,
+    player,
+    opponents,
+    pellets,
     tick,
-    nextBulletId,
-    nextEnemyId,
+    nextSnakeId,
+    message: "Trap rivals against your body to steal their points",
   };
 }
