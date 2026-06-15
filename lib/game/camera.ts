@@ -1,6 +1,6 @@
 import type { Camera, GameState } from "@/types/game";
 
-export function getCamera(
+export function getCameraTarget(
   state: GameState,
   cellSize: number,
 ): Camera {
@@ -22,4 +22,20 @@ export function getCamera(
   }
 
   return { x, y };
+}
+
+export function smoothCamera(
+  current: Camera,
+  target: Camera,
+  factor = 0.28,
+): Camera {
+  return {
+    x: current.x + (target.x - current.x) * factor,
+    y: current.y + (target.y - current.y) * factor,
+  };
+}
+
+// Legacy alias used by tests or imports
+export function getCamera(state: GameState, cellSize: number): Camera {
+  return getCameraTarget(state, cellSize);
 }

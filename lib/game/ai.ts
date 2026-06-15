@@ -3,6 +3,7 @@ import {
   getNextHead,
   isOutOfBounds,
   positionKey,
+  positionsEqual,
   turnLeft,
   turnRight,
 } from "@/lib/game/direction";
@@ -15,7 +16,11 @@ function isBlocked(
   return isOutOfBounds(pos, gridSize) || blocked.has(positionKey(pos));
 }
 
-function pickAiTurn(snake: Snake, state: GameState, blocked: Set<string>): Turn | null {
+function pickAiTurn(
+  snake: Snake,
+  state: GameState,
+  blocked: Set<string>,
+): Turn | null {
   const head = snake.body[0];
   const forward = getNextHead(head, snake.direction);
   const leftHead = getNextHead(head, turnLeft(snake.direction));
@@ -25,7 +30,7 @@ function pickAiTurn(snake: Snake, state: GameState, blocked: Set<string>): Turn 
   const canLeft = !isBlocked(leftHead, state.gridSize, blocked);
   const canRight = !isBlocked(rightHead, state.gridSize, blocked);
 
-  if (canForward && Math.random() > 0.12) {
+  if (canForward && Math.random() > 0.18) {
     return null;
   }
 
@@ -48,36 +53,39 @@ function pickAiTurn(snake: Snake, state: GameState, blocked: Set<string>): Turn 
   return Math.random() < 0.5 ? "left" : "right";
 }
 
-export function buildBlockedCells(state: GameState, excludeSnakeId: number): Set<string> {
+function buildSharedBlockedCells(state: GameState): Set<string> {
   const blocked = new Set<string>();
-
   const allSnakes = [state.player, ...state.opponents];
 
   for (const snake of allSnakes) {
-    if (!snake.alive || snake.id === excludeSnakeId) {
+    if (!snake.alive) {
       continue;
     }
 
-    const segments = snake.body.slice(0, -1);
-    for (const segment of segments) {
+    const tail = snake.body[snake.body.length - 1];
+    for (const segment of snake.body) {
+      if (positionsEqual(segment, tail)) {
+        continue;
+      }
       blocked.add(positionKey(segment));
     }
-  }
-
-  for (const pellet of state.pellets) {
-    blocked.add(positionKey(pellet));
   }
 
   return blocked;
 }
 
 export function assignAiTurns(state: GameState): Snake[] {
+  const sharedBlocked = buildSharedBlockedCells(state);
+
   return state.opponents.map((opponent) => {
     if (!opponent.alive) {
       return opponent;
     }
 
-    const blocked = buildBlockedCells(state, opponent.id);
+    const blocked = new Set(sharedBlocked);
+    const tail = opponent.body[opponent.body.length - 1];
+    blocked.delete(positionKey(tail));
+
     const turn = pickAiTurn(opponent, state, blocked);
 
     return {

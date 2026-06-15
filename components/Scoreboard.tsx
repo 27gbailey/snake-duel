@@ -1,30 +1,32 @@
 import { ARENA_VERSION, BUILD_LABEL } from "@/lib/game/constants";
-import type { GameState } from "@/types/game";
+
+type UiSnapshot = {
+  score: number;
+  length: number;
+  rivalsAlive: number;
+  status: "playing" | "ended";
+  message: string;
+};
 
 type ScoreboardProps = {
-  gameState: GameState;
-  rivalsAlive: number;
+  ui: UiSnapshot;
   onRestart: () => void;
 };
 
-export default function Scoreboard({
-  gameState,
-  rivalsAlive,
-  onRestart,
-}: ScoreboardProps) {
-  const { player, status, message } = gameState;
+export default function Scoreboard({ ui, onRestart }: ScoreboardProps) {
+  const { score, length, rivalsAlive, status, message } = ui;
 
   return (
     <header className="scoreboard">
       <div className="scoreboard__stats">
         <div className="scoreboard__stat">
           <span className="scoreboard__label">Score</span>
-          <span className="scoreboard__score">{player.score}</span>
+          <span className="scoreboard__score">{score}</span>
         </div>
 
         <div className="scoreboard__stat">
           <span className="scoreboard__label">Length</span>
-          <span className="scoreboard__score">{player.body.length}</span>
+          <span className="scoreboard__score">{length}</span>
         </div>
 
         <div className="scoreboard__stat">

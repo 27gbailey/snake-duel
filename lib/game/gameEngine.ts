@@ -3,7 +3,8 @@ import {
   AI_SNAKE_COUNT,
   GRID_SIZE,
   INITIAL_SNAKE_LENGTH,
-  PELLET_COUNT,
+  PELLET_MIN,
+  PELLET_TARGET,
   PLAYER_COLOR,
   PLAYER_ID,
   VIEWPORT_CELLS,
@@ -22,10 +23,14 @@ import {
 import {
   directionDelta,
   getNextHead,
-  positionKey,
   positionsEqual,
 } from "@/lib/game/direction";
-import { absorbVictimBody } from "@/lib/game/snake";
+import {
+  buildOccupiedSet,
+  spawnPelletFast,
+  spawnPelletsFast,
+} from "@/lib/game/pellets";
+import { absorbVictimBody, trimSnakeBody } from "@/lib/game/snake";
 import type {
   Direction,
   EndReason,
@@ -77,84 +82,6 @@ function createSnake(
   };
 }
 
-function getOccupiedCells(
-  player: Snake,
-  opponents: Snake[],
-  pellets: Position[],
-): Set<string> {
-  const occupied = new Set<string>();
-
-  for (const segment of player.body) {
-    occupied.add(positionKey(segment));
-  }
-
-  for (const opponent of opponents) {
-    if (!opponent.alive) {
-      continue;
-    }
-
-    for (const segment of opponent.body) {
-      occupied.add(positionKey(segment));
-    }
-  }
-
-  for (const pellet of pellets) {
-    occupied.add(positionKey(pellet));
-  }
-
-  return occupied;
-}
-
-function getFreeCells(
-  player: Snake,
-  opponents: Snake[],
-  pellets: Position[],
-  gridSize: number,
-): Position[] {
-  const occupied = getOccupiedCells(player, opponents, pellets);
-  const free: Position[] = [];
-
-  for (let y = 0; y < gridSize; y += 1) {
-    for (let x = 0; x < gridSize; x += 1) {
-      if (!occupied.has(`${x},${y}`)) {
-        free.push({ x, y });
-      }
-    }
-  }
-
-  return free;
-}
-
-function spawnPellet(
-  player: Snake,
-  opponents: Snake[],
-  pellets: Position[],
-  gridSize: number,
-): Position {
-  const free = getFreeCells(player, opponents, pellets, gridSize);
-
-  if (free.length === 0) {
-    return { x: 0, y: 0 };
-  }
-
-  return free[Math.floor(Math.random() * free.length)];
-}
-
-function spawnPellets(
-  player: Snake,
-  opponents: Snake[],
-  count: number,
-  gridSize: number,
-): Position[] {
-  const pellets: Position[] = [];
-
-  for (let i = 0; i < count; i += 1) {
-    pellets.push(spawnPellet(player, opponents, pellets, gridSize));
-  }
-
-  return pellets;
-}
-
 function getAiSpawnPoints(gridSize: number): Array<{
   x: number;
   y: number;
@@ -172,8 +99,8 @@ function getAiSpawnPoints(gridSize: number): Array<{
     { x: center, y: gridSize - 1 - margin, direction: "UP" },
     { x: margin, y: center, direction: "RIGHT" },
     { x: gridSize - 1 - margin, y: center, direction: "LEFT" },
-    { x: center - 20, y: center - 20, direction: "DOWN_RIGHT" },
-    { x: center + 20, y: center + 20, direction: "UP_LEFT" },
+    { x: center - 16, y: center - 16, direction: "DOWN_RIGHT" },
+    { x: center + 16, y: center + 16, direction: "UP_LEFT" },
   ];
 }
 
@@ -219,11 +146,45 @@ function spawnReplacementOpponent(
   };
 }
 
+function collectSnakeBodies(
+  player: Snake,
+  opponents: Snake[],
+): Position[][] {
+  const bodies = [player.body];
+
+  for (const opponent of opponents) {
+    if (opponent.alive) {
+      bodies.push(opponent.body);
+    }
+  }
+
+  return bodies;
+}
+
+function tryEatPellet(
+  head: Position,
+  pellets: Position[],
+): { pellets: Position[]; ate: boolean } {
+  const index = pellets.findIndex((pellet) => positionsEqual(pellet, head));
+
+  if (index < 0) {
+    return { pellets, ate: false };
+  }
+
+  const nextPellets = pellets.slice();
+  nextPellets.splice(index, 1);
+  return { pellets: nextPellets, ate: true };
+}
+
 export function createInitialGameState(): GameState {
   const center = Math.floor(GRID_SIZE / 2);
   const player = createSnake(PLAYER_ID, center, center, "RIGHT", true, 0);
   const { opponents, nextId } = createOpponents(GRID_SIZE, 1);
-  const pellets = spawnPellets(player, opponents, PELLET_COUNT, GRID_SIZE);
+  const occupied = buildOccupiedSet(
+    collectSnakeBodies(player, opponents),
+    [],
+  );
+  const pellets = spawnPelletsFast(occupied, GRID_SIZE, PELLET_TARGET);
 
   return {
     gridSize: GRID_SIZE,
@@ -283,7 +244,7 @@ function applyAbsorption(
 ): { player: Snake; opponents: Snake[] } {
   if (killerId === player.id) {
     return {
-      player: absorbVictimBody(player, victim),
+      player: trimSnakeBody(absorbVictimBody(player, victim)),
       opponents,
     };
   }
@@ -291,9 +252,46 @@ function applyAbsorption(
   return {
     player,
     opponents: opponents.map((opponent) =>
-      opponent.id === killerId ? absorbVictimBody(opponent, victim) : opponent,
+      opponent.id === killerId
+        ? trimSnakeBody(absorbVictimBody(opponent, victim))
+        : opponent,
     ),
   };
+}
+
+function replenishPellets(
+  player: Snake,
+  opponents: Snake[],
+  pellets: Position[],
+  gridSize: number,
+  ateThisTick: boolean,
+  tick: number,
+): Position[] {
+  let nextPellets = pellets;
+
+  if (ateThisTick) {
+    const occupied = buildOccupiedSet(
+      collectSnakeBodies(player, opponents),
+      nextPellets,
+    );
+    nextPellets = [
+      ...nextPellets,
+      spawnPelletFast(occupied, gridSize),
+    ];
+  }
+
+  if (tick % 20 === 0 && nextPellets.length < PELLET_MIN) {
+    const occupied = buildOccupiedSet(
+      collectSnakeBodies(player, opponents),
+      nextPellets,
+    );
+    nextPellets = [
+      ...nextPellets,
+      spawnPelletFast(occupied, gridSize),
+    ];
+  }
+
+  return nextPellets;
 }
 
 export function advanceGame(state: GameState): GameState {
@@ -373,26 +371,22 @@ export function advanceGame(state: GameState): GameState {
     deadIds.has(opponent.id) ? { ...opponent, alive: false } : opponent,
   );
 
-  let pellets = [...state.pellets];
+  let pellets = state.pellets;
   let nextSnakeId = state.nextSnakeId;
   const deadOpponents: Snake[] = [];
+  let anyPelletEaten = false;
 
   if (!playerDead) {
     const nextHead = nextHeads.get(player.id)!;
-    const pelletIndex = pellets.findIndex((pellet) =>
-      positionsEqual(pellet, nextHead),
-    );
-    const eatsPellet = pelletIndex >= 0;
+    const eatResult = tryEatPellet(nextHead, pellets);
+    pellets = eatResult.pellets;
+    anyPelletEaten = eatResult.ate;
 
-    if (eatsPellet) {
-      pellets = pellets.filter((_, index) => index !== pelletIndex);
-    }
-
-    player = {
+    player = trimSnakeBody({
       ...player,
-      body: advanceSnakeBody(player, nextHead, eatsPellet),
-      score: eatsPellet ? player.score + 1 : player.score,
-    };
+      body: advanceSnakeBody(player, nextHead, eatResult.ate),
+      score: eatResult.ate ? player.score + 1 : player.score,
+    });
   } else {
     player = { ...player, alive: false };
   }
@@ -406,20 +400,17 @@ export function advanceGame(state: GameState): GameState {
     }
 
     const nextHead = nextHeads.get(opponent.id)!;
-    const pelletIndex = pellets.findIndex((pellet) =>
-      positionsEqual(pellet, nextHead),
-    );
-    const eatsPellet = pelletIndex >= 0;
-
-    if (eatsPellet) {
-      pellets = pellets.filter((_, index) => index !== pelletIndex);
+    const eatResult = tryEatPellet(nextHead, pellets);
+    pellets = eatResult.pellets;
+    if (eatResult.ate) {
+      anyPelletEaten = true;
     }
 
-    return {
+    return trimSnakeBody({
       ...opponent,
-      body: advanceSnakeBody(opponent, nextHead, eatsPellet),
-      score: eatsPellet ? opponent.score + 1 : opponent.score,
-    };
+      body: advanceSnakeBody(opponent, nextHead, eatResult.ate),
+      score: eatResult.ate ? opponent.score + 1 : opponent.score,
+    });
   });
 
   for (const victim of victims) {
@@ -443,12 +434,14 @@ export function advanceGame(state: GameState): GameState {
     nextSnakeId = replacement.nextSnakeId;
   }
 
-  while (pellets.length < PELLET_COUNT) {
-    pellets = [
-      ...pellets,
-      spawnPellet(player, opponents, pellets, state.gridSize),
-    ];
-  }
+  pellets = replenishPellets(
+    player,
+    opponents,
+    pellets,
+    state.gridSize,
+    anyPelletEaten,
+    tick,
+  );
 
   if (playerDead) {
     const reasonText =

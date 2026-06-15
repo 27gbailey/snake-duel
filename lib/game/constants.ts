@@ -1,11 +1,13 @@
 import type { Direction, SnakeColor, Turn } from "@/types/game";
 
-export const GRID_SIZE = 180;
+export const GRID_SIZE = 140;
 export const VIEWPORT_CELLS = 28;
-export const TICK_MS = 75;
+export const TICK_MS = 90;
 export const INITIAL_SNAKE_LENGTH = 8;
-export const PELLET_COUNT = 220;
-export const AI_SNAKE_COUNT = 8;
+export const PELLET_TARGET = 55;
+export const PELLET_MIN = 40;
+export const AI_SNAKE_COUNT = 5;
+export const MAX_BODY_LENGTH = 90;
 export const PLAYER_ID = 0;
 
 export const PLAYER_COLOR: SnakeColor = {
@@ -26,10 +28,9 @@ export const AI_COLORS: SnakeColor[] = [
 ];
 
 export const PELLET_COLOR = "#fde047";
-export const PELLET_GLOW = "rgba(253, 224, 71, 0.6)";
 export const BACKGROUND_COLOR = "#1a1033";
 export const BACKGROUND_ACCENT = "#2d1b4e";
-export const GRID_LINE_COLOR = "rgba(255, 255, 255, 0.03)";
+export const GRID_LINE_COLOR = "rgba(255, 255, 255, 0.04)";
 
 export const DIRECTION_ORDER: Direction[] = [
   "UP",
@@ -52,5 +53,4 @@ export const TURN_KEYS: Record<string, Turn> = {
 export const BUILD_LABEL =
   process.env.NEXT_PUBLIC_BUILD_ID?.slice(0, 7) ?? "local";
 
-// Bumped to help users confirm they loaded the large-arena build.
-export const ARENA_VERSION = "large-arena-v2";
+export const ARENA_VERSION = "large-arena-v3";
