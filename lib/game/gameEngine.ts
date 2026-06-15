@@ -381,7 +381,7 @@ export function advanceGame(state: GameState): GameState {
     };
   });
 
-  for (const _deadOpponent of deadOpponents) {
+  for (let i = 0; i < deadOpponents.length; i += 1) {
     const replacement = spawnReplacementOpponent({
       ...state,
       opponents,

@@ -18,7 +18,11 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000) for local play.
+
+**Live site:** [https://27gbailey.github.io/snake-duel/](https://27gbailey.github.io/snake-duel/)
+
+> Use the `/snake-duel/` link — `https://27gbailey.github.io/` alone will 404 because this is a GitHub project page.
 
 ## Controls
 
