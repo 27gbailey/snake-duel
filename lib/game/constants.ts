@@ -48,3 +48,9 @@ export const TURN_KEYS: Record<string, Turn> = {
   ArrowLeft: "left",
   ArrowRight: "right",
 };
+
+export const BUILD_LABEL =
+  process.env.NEXT_PUBLIC_BUILD_ID?.slice(0, 7) ?? "local";
+
+// Bumped to help users confirm they loaded the large-arena build.
+export const ARENA_VERSION = "large-arena-v2";

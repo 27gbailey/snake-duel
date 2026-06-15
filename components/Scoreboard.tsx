@@ -1,3 +1,4 @@
+import { ARENA_VERSION, BUILD_LABEL } from "@/lib/game/constants";
 import type { GameState } from "@/types/game";
 
 type ScoreboardProps = {
@@ -47,6 +48,10 @@ export default function Scoreboard({
       >
         {status === "ended" ? "Play Again" : "Restart"}
       </button>
+
+      <p className="scoreboard__build">
+        Large arena · {ARENA_VERSION} · build {BUILD_LABEL}
+      </p>
     </header>
   );
 }
