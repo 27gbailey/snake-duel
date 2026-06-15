@@ -5,12 +5,12 @@ export const VIEWPORT_SIZE = 840;
 export const TICK_MS = 100;
 export const MAX_TICKS_PER_FRAME = 2;
 export const MAX_FRAME_DELTA_MS = 50;
-export const INITIAL_SNAKE_LENGTH = 16;
-export const SEGMENT_SPACING = 14;
+export const INITIAL_SNAKE_LENGTH = 48;
+export const SEGMENT_SPACING = 10;
 export const SEGMENT_RADIUS = 7;
-export const PLAYER_SPEED = 3.8;
-export const OPPONENT_SPEED = 3.4;
-export const TURN_RATE = 0.13;
+export const PLAYER_SPEED = 7.5;
+export const OPPONENT_SPEED = 6.7;
+export const TURN_RATE = 0.19;
 export const HEAD_COLLISION_DIST = SEGMENT_RADIUS * 1.75;
 export const BODY_COLLISION_DIST = SEGMENT_RADIUS * 1.6;
 export const PELLET_RADIUS = 5;
@@ -60,4 +60,4 @@ export const TURN_KEYS: Record<string, "left" | "right"> = {
 export const BUILD_LABEL =
   process.env.NEXT_PUBLIC_BUILD_ID?.slice(0, 7) ?? "local";
 
-export const ARENA_VERSION = "free-move-v8";
+export const ARENA_VERSION = "free-move-v10";

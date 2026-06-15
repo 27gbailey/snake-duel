@@ -17,6 +17,24 @@ export function collectOccupiedPoints(
   return occupied;
 }
 
+export function spawnPelletsFromBody(
+  body: Position[],
+  pellets: Position[],
+  worldSize: number,
+): Position[] {
+  const margin = PELLET_SPAWN_CLEARANCE;
+  const nextPellets = [...pellets];
+
+  for (const segment of body) {
+    nextPellets.push({
+      x: Math.max(margin, Math.min(worldSize - margin, segment.x)),
+      y: Math.max(margin, Math.min(worldSize - margin, segment.y)),
+    });
+  }
+
+  return nextPellets;
+}
+
 export function spawnPelletFast(
   occupied: Position[],
   worldSize: number,

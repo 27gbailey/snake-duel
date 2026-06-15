@@ -12,6 +12,7 @@ import {
   PLAYER_COLOR,
   PLAYER_ID,
   PLAYER_SPEED,
+  SEGMENT_RADIUS,
   SEGMENT_SPACING,
   TURN_RATE,
   VIEWPORT_SIZE,
@@ -20,8 +21,6 @@ import {
 import { assignAiTurns } from "@/lib/game/ai";
 import {
   detectCollision,
-  findHeadToHeadKiller,
-  findKillerByBodyHit,
   resolveHeadToHead,
 } from "@/lib/game/collision";
 import {
@@ -33,8 +32,8 @@ import {
   collectOccupiedPoints,
   spawnPelletFast,
   spawnPelletsFast,
+  spawnPelletsFromBody,
 } from "@/lib/game/pellets";
-import { absorbVictimBody } from "@/lib/game/snake";
 import type {
   EndReason,
   GameState,
@@ -100,13 +99,19 @@ function tickOpponentMoveAccumulator(snake: Snake): Snake {
   return { ...snake, moveAccumulator };
 }
 
+function getSpawnEdgeMargin(worldSize: number): number {
+  const bodyReach =
+    (INITIAL_SNAKE_LENGTH - 1) * SEGMENT_SPACING + SEGMENT_RADIUS * 4;
+  return Math.max(worldSize * 0.08, bodyReach);
+}
+
 function getAiSpawnPoints(worldSize: number): Array<{
   x: number;
   y: number;
   angle: number;
 }> {
   const center = worldSize / 2;
-  const margin = worldSize * 0.08;
+  const margin = getSpawnEdgeMargin(worldSize);
 
   return [
     { x: margin, y: margin, angle: 0 },
@@ -215,7 +220,7 @@ export function createInitialGameState(): GameState {
     opponents,
     pellets,
     status: "playing",
-    message: "Steer freely — trap rivals to absorb their length",
+    message: "Steer freely — dead snakes leave pellets along their body",
     tick: 0,
     nextSnakeId: nextId,
   };
@@ -242,29 +247,6 @@ function getOtherBodies(
   return snakes
     .filter((snake) => snake.id !== snakeId && snake.alive)
     .map((snake) => snake.body);
-}
-
-function applyAbsorption(
-  player: Snake,
-  opponents: Snake[],
-  killerId: number,
-  victim: Snake,
-): { player: Snake; opponents: Snake[] } {
-  if (killerId === player.id) {
-    return {
-      player: absorbVictimBody(player, victim),
-      opponents,
-    };
-  }
-
-  return {
-    player,
-    opponents: opponents.map((opponent) =>
-      opponent.id === killerId
-        ? absorbVictimBody(opponent, victim)
-        : opponent,
-    ),
-  };
 }
 
 function replenishPellets(
@@ -362,24 +344,7 @@ export function advanceGame(
   }
 
   const deadIds = resolveHeadToHead(aliveSnakes, nextHeads);
-  const killerMap = new Map<number, number>();
   let playerEndReason: EndReason = null;
-
-  for (const victim of aliveSnakes) {
-    if (!deadIds.has(victim.id)) {
-      continue;
-    }
-
-    const killer = findHeadToHeadKiller(
-      victim,
-      aliveSnakes,
-      nextHeads,
-      deadIds,
-    );
-    if (killer) {
-      killerMap.set(victim.id, killer.id);
-    }
-  }
 
   for (const snake of aliveSnakes) {
     if (deadIds.has(snake.id)) {
@@ -397,16 +362,6 @@ export function advanceGame(
       deadIds.add(snake.id);
       if (snake.isPlayer) {
         playerEndReason = endReason;
-      }
-
-      const killer = findKillerByBodyHit(
-        head,
-        aliveSnakes,
-        deadIds,
-        snake.id,
-      );
-      if (killer) {
-        killerMap.set(snake.id, killer.id);
       }
     }
   }
@@ -467,14 +422,7 @@ export function advanceGame(
   });
 
   for (const victim of victims) {
-    const killerId = killerMap.get(victim.id);
-    if (!killerId) {
-      continue;
-    }
-
-    const result = applyAbsorption(player, opponents, killerId, victim);
-    player = result.player;
-    opponents = result.opponents;
+    pellets = spawnPelletsFromBody(victim.body, pellets, state.worldSize);
   }
 
   opponents = opponents.filter((opponent) => opponent.alive);
@@ -527,6 +475,6 @@ export function advanceGame(
     pellets,
     tick,
     nextSnakeId,
-    message: "Trap rivals to absorb their full length onto your tail",
+    message: "Trap rivals — their body turns into pellets when they die",
   };
 }

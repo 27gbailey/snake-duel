@@ -261,7 +261,7 @@ export default function SnakeGame() {
 
       <p className="game__hint">
         Hold <kbd>←</kbd> <kbd>→</kbd> or <kbd>A</kbd> <kbd>D</kbd> to steer in
-        any direction. Trap rivals to absorb their length.
+        any direction. Trap rivals — their body turns into pellets when they die.
       </p>
     </div>
   );
