@@ -20,6 +20,10 @@ export type Snake = {
   isPlayer: boolean;
   color: SnakeColor;
   moveAccumulator: number;
+  speed: number;
+  sizeScale: number;
+  aiTargetAngle: number;
+  aiTargetUntilTick: number;
 };
 
 export type GameStatus = "playing" | "ended";

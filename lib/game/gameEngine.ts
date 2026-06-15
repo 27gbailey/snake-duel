@@ -1,10 +1,10 @@
 import {
   AI_COLORS,
+  AI_SIZE_PROFILES,
   AI_SNAKE_COUNT,
   INITIAL_SNAKE_LENGTH,
   OPPONENT_MOVE_STEP,
   OPPONENT_MOVE_THRESHOLD,
-  OPPONENT_SPEED,
   PELLET_EAT_DIST,
   PELLET_MIN,
   PELLET_REFILL_BATCH,
@@ -17,6 +17,8 @@ import {
   TURN_RATE,
   VIEWPORT_SIZE,
   WORLD_SIZE,
+  getMaxSnakeLength,
+  type AiSizeProfile,
 } from "@/lib/game/constants";
 import { assignAiTurns } from "@/lib/game/ai";
 import {
@@ -67,8 +69,12 @@ function createSnake(
   angle: number,
   isPlayer: boolean,
   colorIndex: number,
+  profile?: AiSizeProfile,
 ): Snake {
-  const body = createSnakeBody(startX, startY, angle, INITIAL_SNAKE_LENGTH);
+  const length = isPlayer ? INITIAL_SNAKE_LENGTH : profile?.length ?? 36;
+  const body = createSnakeBody(startX, startY, angle, length);
+  const speed = isPlayer ? PLAYER_SPEED : profile?.speed ?? 8.5;
+  const sizeScale = isPlayer ? 1 : profile?.sizeScale ?? 1;
 
   return {
     id,
@@ -79,7 +85,21 @@ function createSnake(
     isPlayer,
     color: isPlayer ? PLAYER_COLOR : AI_COLORS[colorIndex % AI_COLORS.length],
     moveAccumulator: 0,
+    speed,
+    sizeScale,
+    aiTargetAngle: angle,
+    aiTargetUntilTick: 0,
   };
+}
+
+function pickAiProfile(index: number): AiSizeProfile {
+  return AI_SIZE_PROFILES[index % AI_SIZE_PROFILES.length];
+}
+
+function pickRandomAiProfile(): AiSizeProfile {
+  return AI_SIZE_PROFILES[
+    Math.floor(Math.random() * AI_SIZE_PROFILES.length)
+  ];
 }
 
 function opponentWillMoveThisTick(snake: Snake): boolean {
@@ -100,8 +120,8 @@ function tickOpponentMoveAccumulator(snake: Snake): Snake {
 }
 
 function getSpawnEdgeMargin(worldSize: number): number {
-  const bodyReach =
-    (INITIAL_SNAKE_LENGTH - 1) * SEGMENT_SPACING + SEGMENT_RADIUS * 4;
+  const maxLength = getMaxSnakeLength();
+  const bodyReach = (maxLength - 1) * SEGMENT_SPACING + SEGMENT_RADIUS * 4;
   return Math.max(worldSize * 0.08, bodyReach);
 }
 
@@ -112,8 +132,9 @@ function getAiSpawnPoints(worldSize: number): Array<{
 }> {
   const center = worldSize / 2;
   const margin = getSpawnEdgeMargin(worldSize);
+  const ring = worldSize * 0.22;
 
-  return [
+  const points: Array<{ x: number; y: number; angle: number }> = [
     { x: margin, y: margin, angle: 0 },
     { x: worldSize - margin, y: margin, angle: Math.PI },
     { x: margin, y: worldSize - margin, angle: 0 },
@@ -122,11 +143,19 @@ function getAiSpawnPoints(worldSize: number): Array<{
     { x: center, y: worldSize - margin, angle: -Math.PI / 2 },
     { x: margin, y: center, angle: 0 },
     { x: worldSize - margin, y: center, angle: Math.PI },
-    { x: center - 240, y: center - 240, angle: Math.PI / 4 },
-    { x: center + 240, y: center + 240, angle: -Math.PI * 0.75 },
-    { x: center + 240, y: center - 240, angle: Math.PI * 0.75 },
-    { x: center - 240, y: center + 240, angle: -Math.PI / 4 },
+    { x: center - ring, y: center - ring, angle: Math.PI / 4 },
+    { x: center + ring, y: center + ring, angle: -Math.PI * 0.75 },
+    { x: center + ring, y: center - ring, angle: Math.PI * 0.75 },
+    { x: center - ring, y: center + ring, angle: -Math.PI / 4 },
+    { x: center - ring, y: center, angle: 0 },
+    { x: center + ring, y: center, angle: Math.PI },
+    { x: center, y: center - ring, angle: Math.PI / 2 },
+    { x: center, y: center + ring, angle: -Math.PI / 2 },
+    { x: center - ring * 0.5, y: margin + ring * 0.3, angle: Math.PI / 2 },
+    { x: center + ring * 0.5, y: worldSize - margin - ring * 0.3, angle: -Math.PI / 2 },
   ];
+
+  return points;
 }
 
 function createOpponents(
@@ -140,7 +169,15 @@ function createOpponents(
   for (let i = 0; i < AI_SNAKE_COUNT; i += 1) {
     const spawn = spawnPoints[i % spawnPoints.length];
     opponents.push(
-      createSnake(nextId, spawn.x, spawn.y, spawn.angle, false, i),
+      createSnake(
+        nextId,
+        spawn.x,
+        spawn.y,
+        spawn.angle,
+        false,
+        i,
+        pickAiProfile(i),
+      ),
     );
     nextId += 1;
   }
@@ -155,6 +192,7 @@ function spawnReplacementOpponent(
   const spawn =
     spawnPoints[Math.floor(Math.random() * spawnPoints.length)];
   const colorIndex = state.opponents.length + state.tick;
+  const profile = pickRandomAiProfile();
 
   const opponent = createSnake(
     state.nextSnakeId,
@@ -163,6 +201,7 @@ function spawnReplacementOpponent(
     spawn.angle,
     false,
     colorIndex,
+    profile,
   );
 
   return {
@@ -336,8 +375,10 @@ export function advanceGame(
   const nextHeads = new Map<number, Position>();
   for (const snake of aliveSnakes) {
     if (snake.isPlayer || movingOpponentIds.has(snake.id)) {
-      const speed = snake.isPlayer ? PLAYER_SPEED : OPPONENT_SPEED;
-      nextHeads.set(snake.id, getNextHead(snake.body[0], snake.angle, speed));
+      nextHeads.set(
+        snake.id,
+        getNextHead(snake.body[0], snake.angle, snake.speed),
+      );
     } else {
       nextHeads.set(snake.id, snake.body[0]);
     }

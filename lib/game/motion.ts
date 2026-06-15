@@ -23,6 +23,24 @@ export function angleDifference(from: number, to: number): number {
   return normalizeAngle(to - from);
 }
 
+export function steerTowardAngle(
+  current: number,
+  target: number,
+  turnRate: number,
+): number {
+  const diff = angleDifference(current, target);
+
+  if (Math.abs(diff) < 0.04) {
+    return current;
+  }
+
+  if (Math.abs(diff) <= turnRate) {
+    return normalizeAngle(current + diff);
+  }
+
+  return normalizeAngle(current + Math.sign(diff) * turnRate);
+}
+
 export function applyTurnInput(
   angle: number,
   turnLeft: boolean,

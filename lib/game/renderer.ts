@@ -109,7 +109,7 @@ function drawSnake(
   isPlayer = false,
 ): void {
   const colors = snake.color;
-  const radius = SEGMENT_RADIUS * scale;
+  const radius = SEGMENT_RADIUS * snake.sizeScale * scale;
 
   for (let index = snake.body.length - 1; index >= 0; index -= 1) {
     const segment = snake.body[index];
