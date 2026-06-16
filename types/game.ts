@@ -24,7 +24,10 @@ export type Snake = {
   sizeScale: number;
   aiTargetAngle: number;
   aiTargetUntilTick: number;
+  playerSlot?: 0 | 1;
 };
+
+export type GameMode = "single" | "two-player";
 
 export type GameStatus = "playing" | "ended";
 
@@ -40,10 +43,17 @@ export type PlayerInput = {
   turnRight: boolean;
 };
 
+export type GameInputs = {
+  player1: PlayerInput;
+  player2: PlayerInput;
+};
+
 export type GameState = {
+  mode: GameMode;
   worldSize: number;
   viewportSize: number;
   player: Snake;
+  player2: Snake | null;
   opponents: Snake[];
   pellets: Position[];
   status: GameStatus;

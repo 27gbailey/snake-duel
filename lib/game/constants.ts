@@ -23,6 +23,9 @@ export const AI_SNAKE_COUNT = 18;
 export const OPPONENT_MOVE_STEP = 9;
 export const OPPONENT_MOVE_THRESHOLD = 10;
 export const PLAYER_ID = 0;
+export const PLAYER2_ID = -1;
+export const VIEW_MERGE_START = VIEWPORT_SIZE * 0.38;
+export const VIEW_MERGE_END = VIEWPORT_SIZE * 0.72;
 
 export type AiSizeProfile = {
   length: number;
@@ -44,6 +47,12 @@ export const PLAYER_COLOR: SnakeColor = {
   head: "#4ade80",
   body: "#22c55e",
   glow: "rgba(74, 222, 128, 0.55)",
+};
+
+export const PLAYER2_COLOR: SnakeColor = {
+  head: "#60a5fa",
+  body: "#3b82f6",
+  glow: "rgba(96, 165, 250, 0.55)",
 };
 
 export const AI_COLORS: SnakeColor[] = [
@@ -71,19 +80,28 @@ export const PELLET_COLOR = "#fde047";
 export const BACKGROUND_COLOR = "#1a1033";
 export const BACKGROUND_ACCENT = "#2d1b4e";
 
-export const TURN_KEYS: Record<string, "left" | "right"> = {
-  ArrowLeft: "left",
-  ArrowRight: "right",
+export const PLAYER1_TURN_KEYS: Record<string, "left" | "right"> = {
   a: "left",
   A: "left",
   d: "right",
   D: "right",
 };
 
+export const PLAYER2_TURN_KEYS: Record<string, "left" | "right"> = {
+  ArrowLeft: "left",
+  ArrowRight: "right",
+};
+
+/** Single-player: arrows or A/D */
+export const TURN_KEYS: Record<string, "left" | "right"> = {
+  ...PLAYER1_TURN_KEYS,
+  ...PLAYER2_TURN_KEYS,
+};
+
 export const BUILD_LABEL =
   process.env.NEXT_PUBLIC_BUILD_ID?.slice(0, 7) ?? "local";
 
-export const ARENA_VERSION = "free-move-v11";
+export const ARENA_VERSION = "free-move-v13";
 
 export function getMaxSnakeLength(): number {
   const aiMax = Math.max(...AI_SIZE_PROFILES.map((profile) => profile.length));

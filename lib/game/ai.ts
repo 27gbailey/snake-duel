@@ -198,6 +198,9 @@ function avoidWalls(
 function buildSharedBlockedSegments(state: GameState): { x: number; y: number }[] {
   const blocked: { x: number; y: number }[] = [];
   const allSnakes = [state.player, ...state.opponents];
+  if (state.player2) {
+    allSnakes.push(state.player2);
+  }
 
   for (const snake of allSnakes) {
     if (!snake.alive) {
