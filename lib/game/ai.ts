@@ -3,7 +3,7 @@ import {
   SEGMENT_RADIUS,
   TURN_RATE,
 } from "@/lib/game/constants";
-import type { GameState, Snake } from "@/types/game";
+import type { GameState, Position, Snake } from "@/types/game";
 import {
   angleDifference,
   distance,
@@ -14,12 +14,166 @@ import {
   steerTowardAngle,
 } from "@/lib/game/motion";
 
-const AI_TARGET_MIN_TICKS = 50;
-const AI_TARGET_MAX_TICKS = 90;
+const AI_TARGET_MIN_TICKS = 40;
+const AI_TARGET_MAX_TICKS = 75;
+const AI_HUNT_TARGET_MIN_TICKS = 22;
+const AI_HUNT_TARGET_MAX_TICKS = 45;
 const WALL_LOOKAHEAD = 140;
+const HUNT_RANGE = 820;
+const HUNT_PLAYER_BONUS = 140;
+const HUNT_BODY_SAMPLE_STEP = 3;
 
 function collisionRadius(snake: Snake): number {
   return snake.sizeScale * SEGMENT_RADIUS * (BODY_COLLISION_DIST / SEGMENT_RADIUS);
+}
+
+function getOtherSnakes(state: GameState, selfId: number): Snake[] {
+  const snakes: Snake[] = [state.player];
+
+  if (state.player2) {
+    snakes.push(state.player2);
+  }
+
+  for (const opponent of state.opponents) {
+    if (opponent.id !== selfId && opponent.alive) {
+      snakes.push(opponent);
+    }
+  }
+
+  return snakes.filter((snake) => snake.alive);
+}
+
+type HuntTarget = {
+  x: number;
+  y: number;
+  score: number;
+};
+
+function scoreHuntPoint(
+  hunter: Snake,
+  target: Snake,
+  head: Position,
+  point: Position,
+  kind: "intercept" | "flank" | "body",
+): number {
+  const dist = distance(head, point);
+  if (dist > HUNT_RANGE) {
+    return -Infinity;
+  }
+
+  let score = HUNT_RANGE - dist;
+
+  if (target.isPlayer) {
+    score += HUNT_PLAYER_BONUS;
+  }
+
+  const lengthDelta = hunter.body.length - target.body.length;
+  score += Math.max(-25, lengthDelta * 6);
+
+  const targetHead = target.body[0];
+  const toPoint = Math.atan2(point.y - head.y, point.x - head.x);
+  const cutAlignment = Math.abs(angleDifference(target.angle, toPoint));
+
+  if (kind === "flank" || kind === "body") {
+    score += 55;
+    if (cutAlignment > 0.45 && cutAlignment < 2.4) {
+      score += 30;
+    }
+  }
+
+  if (kind === "intercept") {
+    score += 25;
+    if (lengthDelta >= 0) {
+      score += 20;
+    }
+  }
+
+  if (kind === "body") {
+    score += 35;
+  }
+
+  for (let i = 1; i < hunter.body.length; i += 1) {
+    const segment = hunter.body[i];
+    if (distance(point, segment) < collisionRadius(hunter) * 1.2) {
+      score -= 20;
+      break;
+    }
+  }
+
+  return score;
+}
+
+function getHuntCandidates(
+  hunter: Snake,
+  target: Snake,
+  head: Position,
+): HuntTarget[] {
+  const targetHead = target.body[0];
+  const dist = distance(head, targetHead);
+
+  if (dist > HUNT_RANGE) {
+    return [];
+  }
+
+  const candidates: HuntTarget[] = [];
+  const leadTime = Math.min(14, dist / Math.max(target.speed, 1));
+  const intercept = {
+    x: targetHead.x + Math.cos(target.angle) * target.speed * leadTime,
+    y: targetHead.y + Math.sin(target.angle) * target.speed * leadTime,
+  };
+
+  candidates.push({
+    x: intercept.x,
+    y: intercept.y,
+    score: scoreHuntPoint(hunter, target, head, intercept, "intercept"),
+  });
+
+  const flankDistance = 75 + hunter.sizeScale * 12;
+  for (const sign of [-1, 1]) {
+    const flankAngle = target.angle + sign * (Math.PI / 2);
+    const flankPoint = {
+      x: targetHead.x + Math.cos(flankAngle) * flankDistance,
+      y: targetHead.y + Math.sin(flankAngle) * flankDistance,
+    };
+    candidates.push({
+      x: flankPoint.x,
+      y: flankPoint.y,
+      score: scoreHuntPoint(hunter, target, head, flankPoint, "flank"),
+    });
+  }
+
+  for (let i = 1; i < target.body.length; i += HUNT_BODY_SAMPLE_STEP) {
+    const segment = target.body[i];
+    candidates.push({
+      x: segment.x,
+      y: segment.y,
+      score: scoreHuntPoint(hunter, target, head, segment, "body"),
+    });
+  }
+
+  return candidates;
+}
+
+function findBestHuntTarget(
+  snake: Snake,
+  state: GameState,
+): HuntTarget | null {
+  const head = snake.body[0];
+  let best: HuntTarget | null = null;
+
+  for (const target of getOtherSnakes(state, snake.id)) {
+    for (const candidate of getHuntCandidates(snake, target, head)) {
+      if (candidate.score < 120) {
+        continue;
+      }
+
+      if (!best || candidate.score > best.score) {
+        best = candidate;
+      }
+    }
+  }
+
+  return best;
 }
 
 function findBestPelletTarget(
@@ -140,15 +294,30 @@ function pickWanderTarget(
   snake: Snake,
   state: GameState,
   blocked: { x: number; y: number }[],
-): number {
+): { angle: number; hunting: boolean } {
   const head = snake.body[0];
+  const huntTarget = findBestHuntTarget(snake, state);
+
+  if (huntTarget) {
+    return {
+      angle: Math.atan2(huntTarget.y - head.y, huntTarget.x - head.x),
+      hunting: true,
+    };
+  }
+
   const pellet = findBestPelletTarget(head, snake.angle, state.pellets);
 
   if (pellet && distance(head, pellet) < 520) {
-    return Math.atan2(pellet.y - head.y, pellet.x - head.x);
+    return {
+      angle: Math.atan2(pellet.y - head.y, pellet.x - head.x),
+      hunting: false,
+    };
   }
 
-  return pickOpenAngle(snake, state, blocked);
+  return {
+    angle: pickOpenAngle(snake, state, blocked),
+    hunting: false,
+  };
 }
 
 function avoidWalls(
@@ -237,10 +406,13 @@ function updateAiTarget(
   );
 
   if (needsNewTarget(snake, tick) || blockedAhead) {
-    targetAngle = pickWanderTarget(snake, state, blocked);
+    const pick = pickWanderTarget(snake, state, blocked);
+    targetAngle = pick.angle;
+
+    const minTicks = pick.hunting ? AI_HUNT_TARGET_MIN_TICKS : AI_TARGET_MIN_TICKS;
+    const maxTicks = pick.hunting ? AI_HUNT_TARGET_MAX_TICKS : AI_TARGET_MAX_TICKS;
     const span =
-      AI_TARGET_MIN_TICKS +
-      Math.floor(Math.random() * (AI_TARGET_MAX_TICKS - AI_TARGET_MIN_TICKS));
+      minTicks + Math.floor(Math.random() * (maxTicks - minTicks));
     targetUntilTick = tick + span;
   }
 

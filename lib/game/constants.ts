@@ -101,7 +101,7 @@ export const TURN_KEYS: Record<string, "left" | "right"> = {
 export const BUILD_LABEL =
   process.env.NEXT_PUBLIC_BUILD_ID?.slice(0, 7) ?? "local";
 
-export const ARENA_VERSION = "free-move-v13";
+export const ARENA_VERSION = "free-move-v15";
 
 export function getMaxSnakeLength(): number {
   const aiMax = Math.max(...AI_SIZE_PROFILES.map((profile) => profile.length));

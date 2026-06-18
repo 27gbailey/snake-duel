@@ -1,10 +1,11 @@
-import { PELLET_SPAWN_CLEARANCE } from "@/lib/game/constants";
+import { PELLET_SPAWN_CLEARANCE, SEGMENT_SPACING } from "@/lib/game/constants";
 import { distance, isTooClose } from "@/lib/game/motion";
 import type { Position } from "@/types/game";
 
 const MAX_SPAWN_ATTEMPTS = 64;
-const DEATH_PELLET_MIN_SPREAD = 280;
-const DEATH_PELLET_SPREAD_FACTOR = 3.2;
+/** Pellets cluster near the corpse instead of scattering across the arena. */
+const DEATH_PELLET_JITTER = 16;
+const DEATH_PELLET_EXTRA_SPREAD = 28;
 
 export function collectOccupiedPoints(
   snakeBodies: Position[][],
@@ -51,17 +52,16 @@ export function spawnPelletsFromBody(
     );
   }
 
-  const spreadRadius = Math.max(
-    DEATH_PELLET_MIN_SPREAD,
-    maxSegmentDistance * DEATH_PELLET_SPREAD_FACTOR,
-  );
+  const clusterRadius =
+    maxSegmentDistance + DEATH_PELLET_EXTRA_SPREAD + SEGMENT_SPACING;
 
   for (let i = 0; i < count; i += 1) {
+    const segment = body[i];
     const angle = Math.random() * Math.PI * 2;
-    const radius = Math.sqrt(Math.random()) * spreadRadius;
+    const radius = Math.random() * clusterRadius;
     const candidate = {
-      x: centerX + Math.cos(angle) * radius,
-      y: centerY + Math.sin(angle) * radius,
+      x: segment.x + Math.cos(angle) * radius * 0.35 + (Math.random() - 0.5) * DEATH_PELLET_JITTER,
+      y: segment.y + Math.sin(angle) * radius * 0.35 + (Math.random() - 0.5) * DEATH_PELLET_JITTER,
     };
 
     nextPellets.push({

@@ -38,6 +38,10 @@ import {
   spawnPelletsFast,
   spawnPelletsFromBody,
 } from "@/lib/game/pellets";
+import {
+  isNearHumanPlayers,
+  isSafeRespawnPosition,
+} from "@/lib/game/spawn";
 import type {
   EndReason,
   GameInputs,
@@ -219,8 +223,47 @@ function spawnReplacementOpponent(
   state: GameState,
 ): { opponent: Snake; nextSnakeId: number } {
   const spawnPoints = getAiSpawnPoints(state.worldSize);
-  const spawn =
-    spawnPoints[Math.floor(Math.random() * spawnPoints.length)];
+  const occupied = collectOccupiedPoints(
+    collectSnakeBodies(state.player, state.opponents, state.player2),
+    state.pellets,
+  );
+
+  const safeSpawnPoints = spawnPoints.filter(
+    (spawn) =>
+      isSafeRespawnPosition(
+        { x: spawn.x, y: spawn.y },
+        state,
+        occupied,
+      ),
+  );
+
+  let spawn =
+    safeSpawnPoints.length > 0
+      ? safeSpawnPoints[Math.floor(Math.random() * safeSpawnPoints.length)]
+      : null;
+
+  if (!spawn) {
+    const margin = getSpawnEdgeMargin(state.worldSize);
+    for (let attempt = 0; attempt < 48; attempt += 1) {
+      const candidate = {
+        x: margin + Math.random() * (state.worldSize - margin * 2),
+        y: margin + Math.random() * (state.worldSize - margin * 2),
+        angle: Math.random() * Math.PI * 2,
+      };
+
+      if (isSafeRespawnPosition(candidate, state, occupied)) {
+        spawn = candidate;
+        break;
+      }
+    }
+  }
+
+  if (!spawn) {
+    spawn = spawnPoints.find(
+      (point) => !isNearHumanPlayers({ x: point.x, y: point.y }, state),
+    ) ?? spawnPoints[0];
+  }
+
   const colorIndex = state.opponents.length + state.tick;
   const profile = pickRandomAiProfile();
 
