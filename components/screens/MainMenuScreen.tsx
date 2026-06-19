@@ -46,6 +46,7 @@ export default function MainMenuScreen() {
             Settings
           </Button>
         </div>
+        <p className="menu-actions__version">Slice &amp; Serve · v1</p>
       </Panel>
     </div>
   );

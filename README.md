@@ -61,11 +61,44 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ### Vercel (recommended)
 
+**Dashboard (easiest)**
+
+1. Open [Import `snake-duel` on Vercel](https://vercel.com/new/import?s=https://github.com/27gbailey/snake-duel)
+2. Sign in with GitHub as **27gbailey**
+3. Import **snake-duel**
+4. Use these settings (defaults are usually correct):
+
+| Setting | Value |
+|---------|-------|
+| Framework | Next.js |
+| Build Command | `npm run build` |
+| Install Command | `npm install` |
+| Output Directory | *(leave empty)* |
+| Root Directory | *(leave empty)* |
+
+5. **Do not** set `GITHUB_PAGES=true` — that env var is only for the GitHub Pages static export.
+6. Click **Deploy**
+
+Pushes to `main` will trigger automatic production deploys.
+
+**CLI**
+
 ```bash
-npx vercel
+npm install
+bash scripts/setup-vercel.sh   # opens import page + prints steps
+npx vercel login
+npx vercel link
+npm run vercel:preview   # preview deployment
+npm run vercel:deploy    # production
 ```
 
-Or connect the GitHub repository in the Vercel dashboard. `vercel.json` is included.
+**Production URL**
+
+After deploy, Vercel assigns a URL like:
+
+`https://snake-duel-<hash>.vercel.app`
+
+You can add a custom domain in **Project → Settings → Domains**.
 
 ### GitHub Pages
 
