@@ -34,6 +34,7 @@ import {
 } from "@/lib/game/motion";
 import {
   collectOccupiedPoints,
+  capPelletCount,
   spawnPelletFast,
   spawnPelletsFast,
   spawnPelletsFromBody,
@@ -496,7 +497,7 @@ function replenishPellets(
     ];
   }
 
-  return nextPellets;
+  return capPelletCount(nextPellets);
 }
 
 export function advanceGame(
@@ -637,6 +638,8 @@ export function advanceGame(
   for (const victim of victims) {
     pellets = spawnPelletsFromBody(victim.body, pellets, state.worldSize);
   }
+
+  pellets = capPelletCount(pellets);
 
   opponents = opponents.filter((opponent) => opponent.alive);
 
