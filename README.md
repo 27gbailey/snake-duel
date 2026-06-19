@@ -57,13 +57,27 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-## Deploy to Vercel
+## Deploy
+
+### Vercel (recommended)
 
 ```bash
 npx vercel
 ```
 
-Or connect the GitHub repository in the Vercel dashboard. No extra configuration required.
+Or connect the GitHub repository in the Vercel dashboard. `vercel.json` is included.
+
+### GitHub Pages
+
+Pushes to `main` run `.github/workflows/deploy.yml` automatically.
+
+Live URL: https://27gbailey.github.io/snake-duel/
+
+Local static build:
+
+```bash
+npm run build:pages
+```
 
 ## Adding Toppings
 
