@@ -1,15 +1,52 @@
-# Snake.IO
+# Slice & Serve — Pizza Restaurant Simulator
 
-A single-player Snake.IO-style arena built with Next.js, TypeScript, and HTML5 Canvas.
+A day-based pizza restaurant management game built with **Next.js 15**, **TypeScript**, **React**, **Tailwind CSS**, and **Zustand**.
 
-## Features
+## Gameplay
 
-- **Always forward** — your snake never stops; you only steer
-- **Arrow key turning** — `←` and `→` rotate your head left or right
-- **Rival snakes** — AI opponents roam the arena
-- **Trap to score** — force rivals into your body (or walls) to steal their points
-- **Pellets** — eat glowing pellets to grow; dead snakes drop mass you can absorb
-- **50×50 arena** with responsive canvas scaling
+- Customers arrive one at a time and place orders in natural language
+- Build pizzas with dough, sauce, cheese, and toppings across halves and quarters
+- Bake, cut, and serve — customer patience and order accuracy affect tips and reputation
+- Manage inventory, buy upgrades, and track daily profit
+- Progress through days with increasing difficulty and special events
+
+## Tech Stack
+
+| Layer | Choice |
+|-------|--------|
+| Framework | Next.js 15 (App Router) |
+| Language | TypeScript (strict) |
+| Styling | Tailwind CSS 4 |
+| State | Zustand + LocalStorage persistence |
+| Deploy | Vercel-ready |
+
+## Architecture
+
+```
+features/game/
+  types/          — shared TypeScript types
+  data/           — configurable toppings, upgrades, dialogue
+  engines/        — game, customer, order, validation, economy, inventory
+                    save/load, achievements, upgrades
+  store/          — Zustand game store
+components/
+  screens/        — all UI screens
+  pizza/          — pizza construction UI
+  ui/             — reusable components
+lib/persistence/  — repository abstraction (PostgreSQL-ready)
+```
+
+### Engines
+
+- **Game engine** — day loop, pizza lifecycle, starting state
+- **Customer engine** — procedural customers, patience, satisfaction, tips
+- **Order engine** — natural language → structured pizza requirements
+- **Pizza validation engine** — scores built pizzas against orders
+- **Economy engine** — revenue, costs, restocking, upgrades
+- **Inventory engine** — stock tracking and low-stock warnings
+- **Save/load system** — `LocalSaveRepository` / `IndexedDbSaveRepository`
+- **Achievement system** — unlock tracking
+- **Upgrade system** — purchasable restaurant improvements
 
 ## Getting Started
 
@@ -18,36 +55,38 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) for local play.
+Open [http://localhost:3000](http://localhost:3000).
 
-**Live site:** [https://27gbailey.github.io/snake-duel/](https://27gbailey.github.io/snake-duel/)
+## Deploy to Vercel
 
-> Use the `/snake-duel/` link — `https://27gbailey.github.io/` alone will 404 because this is a GitHub project page.
-
-## Controls
-
-| Key | Action |
-|-----|--------|
-| `←` | Turn left |
-| `→` | Turn right |
-
-## Project Structure
-
-```
-types/game.ts           — Shared TypeScript types
-lib/game/constants.ts   — Grid size, colors, tuning
-lib/game/direction.ts   — Movement and turning helpers
-lib/game/collision.ts   — Collision and head-to-head logic
-lib/game/ai.ts          — Rival snake steering
-lib/game/gameEngine.ts  — Game state and tick advancement
-lib/game/renderer.ts    — Canvas drawing
-components/SnakeGame.tsx — Main game component
-components/Scoreboard.tsx — Score display and restart
+```bash
+npx vercel
 ```
 
-## Scripts
+Or connect the GitHub repository in the Vercel dashboard. No extra configuration required.
 
-- `npm run dev` — Start development server
-- `npm run build` — Production build
-- `npm run start` — Start production server
-- `npm run lint` — Run ESLint
+## Adding Toppings
+
+Edit `features/game/data/toppings.ts` to add new toppings without changing game logic.
+
+## Persistence
+
+Saves are stored in LocalStorage via Zustand persist. The `SaveRepository` interface in `features/game/engines/saveLoadSystem.ts` is ready to swap for PostgreSQL later.
+
+## Screens
+
+- Main menu
+- Restaurant (customer queue)
+- Pizza prep station
+- Oven
+- Cutting station
+- Shop
+- Upgrades
+- Inventory
+- Daily summary
+- Statistics
+- Settings
+
+## License
+
+MIT

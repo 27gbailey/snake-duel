@@ -1,0 +1,58 @@
+import type { UpgradeDefinition } from "@/features/game/types";
+
+export const UPGRADE_CATALOG: Omit<UpgradeDefinition, "purchased">[] = [
+  {
+    id: "fast-oven",
+    name: "Turbo Oven",
+    description: "Bake pizzas 25% faster.",
+    category: "equipment",
+    cost: 250,
+    unlockDay: 2,
+    effect: "bakeSpeed:1.25",
+  },
+  {
+    id: "prep-station",
+    name: "Prep Station Pro",
+    description: "Extra prep counter space — smoother workflow.",
+    category: "equipment",
+    cost: 180,
+    unlockDay: 1,
+    effect: "prepBonus:1",
+  },
+  {
+    id: "dough-mixer",
+    name: "Industrial Dough Mixer",
+    description: "Dough costs reduced by 15%.",
+    category: "equipment",
+    cost: 320,
+    unlockDay: 3,
+    effect: "doughDiscount:0.15",
+  },
+  {
+    id: "neon-sign",
+    name: "Neon Open Sign",
+    description: "Attracts more customers each day.",
+    category: "decoration",
+    cost: 150,
+    unlockDay: 2,
+    effect: "customerBonus:2",
+  },
+  {
+    id: "brick-oven",
+    name: "Brick Oven",
+    description: "Higher tips from satisfied customers.",
+    category: "restaurant",
+    cost: 500,
+    unlockDay: 5,
+    effect: "tipBonus:0.2",
+  },
+  {
+    id: "outdoor-seating",
+    name: "Outdoor Seating",
+    description: "Boost reputation faster.",
+    category: "restaurant",
+    cost: 400,
+    unlockDay: 4,
+    effect: "reputationBonus:0.15",
+  },
+];

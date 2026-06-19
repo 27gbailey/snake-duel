@@ -1,18 +1,18 @@
 {
-  "name": "snake-duel",
-  "version": "0.1.0",
+  "name": "slice-and-serve",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
-    "build:pages": "GITHUB_PAGES=true next build && node scripts/prepare-github-pages.mjs",
     "start": "next start",
     "lint": "next lint"
   },
   "dependencies": {
     "next": "^15.3.3",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "zustand": "^5.0.5"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
