@@ -8,7 +8,6 @@ export const SCENE_COLORS: Record<number, string> = {
   2: "#b8e4f8",
   3: "#ffcc00",
   4: "#ffe566",
-  5: "#ffffff",
   10: "#4caf50",
   11: "#3d9a45",
   12: "#9a7030",
@@ -31,55 +30,6 @@ export const TREE_COLORS: Record<number, string> = {
   4: "#5c3d1e",
   5: "#3d2810",
 };
-
-/** Build a puffy oval cumulus cloud with a flat bottom (not triangular). */
-export function buildCumulusShape(width = 23, height = 9): number[][] {
-  const shape: number[][] = [];
-  const centerX = (width - 1) / 2;
-  const flatRows = 2;
-  const domeBottom = height - flatRows;
-
-  for (let y = 0; y < height; y++) {
-    const row = Array<number>(width).fill(0);
-
-    if (y >= domeBottom) {
-      for (let x = 0; x < width; x++) {
-        row[x] = 1;
-      }
-      shape.push(row);
-      continue;
-    }
-
-    const radiusX = width / 2 - 1;
-    const radiusY = domeBottom - 0.5;
-
-    for (let x = 0; x < width; x++) {
-      const nx = (x - centerX) / radiusX;
-      const ny = (y - domeBottom) / radiusY;
-      if (nx * nx + ny * ny <= 1.08) {
-        row[x] = 1;
-      }
-    }
-
-    if (y <= 2) {
-      for (let x = 0; x < width; x++) {
-        for (const lobeCenter of [centerX - 5, centerX, centerX + 5]) {
-          const dx = x - lobeCenter;
-          const dy = y - 1.2;
-          if (dx * dx + dy * dy <= 5) {
-            row[x] = 1;
-          }
-        }
-      }
-    }
-
-    shape.push(row);
-  }
-
-  return shape;
-}
-
-export const CUMULUS_SHAPE = buildCumulusShape();
 
 /** Circular blocky sun — centered on glow. */
 export const SUN_SHAPE: number[][] = [
@@ -215,17 +165,6 @@ export function buildSceneGrid(layout: SceneLayout): number[][] {
   }
 
   stampShape(grid, sunOffsetCol, sunOffsetRow, SUN_SHAPE, (value) => (value === 2 ? 4 : 3));
-
-  const cloudPlacements = [
-    { col: 3, row: 2 },
-    { col: Math.floor(cols * 0.28), row: 4 },
-    { col: Math.floor(cols * 0.52), row: 2 },
-    { col: Math.floor(cols * 0.72), row: 5 },
-  ];
-
-  for (const cloud of cloudPlacements) {
-    stampShape(grid, cloud.col, cloud.row, CUMULUS_SHAPE, () => 5);
-  }
 
   const caves = [
     { cx: cols * 0.48, cy: skyRows + 7, rx: Math.max(3, cols * 0.04), ry: 1.6 },
