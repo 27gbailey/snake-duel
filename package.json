@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
+    "build:pages": "GITHUB_PAGES=true next build && node scripts/prepare-github-pages.mjs",
     "start": "next start",
     "lint": "next lint"
   },
