@@ -1,9 +1,22 @@
 @import "tailwindcss";
 
 :root {
-  --sky-top: #1a4d8f;
-  --sky-bottom: #5eb8ff;
-  --ground: #2d6a3e;
+  --sky-deep: #0f3d7a;
+  --sky-mid: #2a6cb8;
+  --sky-light: #6ec4ff;
+  --sky-pale: #a8dcff;
+  --sun: #ffe566;
+  --sun-shadow: #e6b800;
+  --grass-dark: #1a4d28;
+  --grass-mid: #2d7a3a;
+  --grass-light: #45a652;
+  --grass-bright: #5ecf6a;
+  --dirt: #3d2817;
+  --trunk: #5c3d1e;
+  --trunk-dark: #3d2810;
+  --leaves-dark: #1e6b32;
+  --leaves-mid: #2d8a42;
+  --leaves-light: #3cb356;
   --title-shadow: #0f2d52;
   --button-yellow: #ffd400;
   --button-yellow-dark: #c9a600;
@@ -21,11 +34,20 @@ body {
 
 body {
   font-family: var(--font-block), monospace;
-  background: linear-gradient(180deg, var(--sky-top) 0%, var(--sky-bottom) 55%, var(--ground) 55%, #1f4d2b 100%);
+  background: var(--sky-deep);
   color: #fff;
+  overflow-x: hidden;
 }
 
 .title-screen {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+.title-screen__content {
+  position: relative;
+  z-index: 10;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -35,6 +57,353 @@ body {
   padding: 2rem 1rem;
 }
 
+/* ── Scene ── */
+.blocky-scene {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* ── Sky ── */
+.blocky-sky {
+  position: absolute;
+  inset: 0 0 38%;
+  background: var(--sky-deep);
+}
+
+.blocky-sky__band {
+  position: absolute;
+  left: 0;
+  right: 0;
+}
+
+.blocky-sky__band--deep {
+  top: 0;
+  height: 35%;
+  background: var(--sky-deep);
+}
+
+.blocky-sky__band--mid {
+  top: 35%;
+  height: 30%;
+  background: repeating-linear-gradient(
+    180deg,
+    var(--sky-mid) 0px,
+    var(--sky-mid) 16px,
+    #2563a8 16px,
+    #2563a8 32px
+  );
+}
+
+.blocky-sky__band--light {
+  top: 65%;
+  height: 35%;
+  background: repeating-linear-gradient(
+    180deg,
+    var(--sky-light) 0px,
+    var(--sky-light) 12px,
+    var(--sky-pale) 12px,
+    var(--sky-pale) 24px
+  );
+}
+
+.blocky-sun {
+  position: absolute;
+  top: 14%;
+  right: 12%;
+  width: 56px;
+  height: 56px;
+  background: var(--sun);
+  box-shadow:
+    8px 0 0 var(--sun),
+    -8px 0 0 var(--sun),
+    0 8px 0 var(--sun),
+    0 -8px 0 var(--sun),
+    8px 8px 0 var(--sun-shadow),
+    -8px 8px 0 var(--sun-shadow),
+    8px -8px 0 var(--sun-shadow),
+    -8px -8px 0 var(--sun-shadow),
+    0 0 0 4px var(--sun-shadow);
+}
+
+/* ── Clouds ── */
+.block-cloud {
+  position: absolute;
+  display: grid;
+  grid-template-columns: repeat(3, 16px);
+  gap: 0;
+  filter: drop-shadow(4px 4px 0 rgba(0, 0, 0, 0.08));
+}
+
+.block-cloud span {
+  width: 16px;
+  height: 16px;
+  background: #eef8ff;
+  box-shadow: inset -3px -3px 0 #c8e4f8;
+}
+
+.block-cloud span:nth-child(1) {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.block-cloud span:nth-child(2) {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.block-cloud span:nth-child(3) {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.block-cloud span:nth-child(4) {
+  grid-column: 3;
+  grid-row: 2;
+}
+
+.block-cloud span:nth-child(5) {
+  grid-column: 2;
+  grid-row: 3;
+  background: #dceef8;
+}
+
+/* ── Hills ── */
+.blocky-hills {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 32%;
+  height: 18%;
+}
+
+.blocky-hill {
+  position: absolute;
+  bottom: 0;
+  height: 100%;
+}
+
+.blocky-hill--back {
+  left: -5%;
+  width: 110%;
+  background: repeating-linear-gradient(
+    90deg,
+    #245a30 0px,
+    #245a30 24px,
+    #1e4d28 24px,
+    #1e4d28 48px
+  );
+  clip-path: polygon(0 100%, 0 40%, 8% 25%, 18% 35%, 28% 15%, 40% 30%, 52% 10%, 64% 28%, 76% 12%, 88% 32%, 100% 18%, 100% 100%);
+  opacity: 0.85;
+}
+
+.blocky-hill--mid {
+  left: -2%;
+  width: 104%;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--grass-mid) 0px,
+    var(--grass-mid) 20px,
+    var(--grass-dark) 20px,
+    var(--grass-dark) 40px
+  );
+  clip-path: polygon(0 100%, 0 55%, 12% 38%, 24% 50%, 36% 32%, 50% 48%, 62% 30%, 74% 45%, 86% 35%, 100% 50%, 100% 100%);
+}
+
+/* ── Trees ── */
+.blocky-trees {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+
+.block-tree {
+  position: absolute;
+  transform-origin: bottom center;
+}
+
+.block-tree__canopy {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, 14px);
+  gap: 0;
+  margin-bottom: 2px;
+}
+
+.block-tree__canopy span {
+  width: 14px;
+  height: 14px;
+  background: var(--leaves-mid);
+  box-shadow: inset -2px -2px 0 var(--leaves-dark);
+}
+
+.block-tree__canopy span:nth-child(1) {
+  grid-column: 1;
+  grid-row: 2;
+  background: var(--leaves-dark);
+}
+
+.block-tree__canopy span:nth-child(2) {
+  grid-column: 2;
+  grid-row: 1;
+  background: var(--leaves-light);
+}
+
+.block-tree__canopy span:nth-child(3) {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.block-tree__canopy span:nth-child(4) {
+  grid-column: 3;
+  grid-row: 2;
+}
+
+.block-tree__canopy-top {
+  grid-column: 2;
+  grid-row: 0;
+  position: relative;
+  top: -14px;
+  background: var(--leaves-light) !important;
+}
+
+.block-tree--tall .block-tree__canopy {
+  grid-template-rows: repeat(4, 14px);
+}
+
+.block-tree--tall .block-tree__canopy span:nth-child(2) {
+  grid-row: 2;
+}
+
+.block-tree--tall .block-tree__canopy span:nth-child(3) {
+  grid-row: 3;
+}
+
+.block-tree--tall .block-tree__canopy-top {
+  grid-row: 1;
+  top: 0;
+}
+
+.block-tree--wide .block-tree__canopy {
+  grid-template-columns: repeat(5, 14px);
+}
+
+.block-tree--wide .block-tree__canopy span:nth-child(1) {
+  grid-column: 2;
+}
+
+.block-tree--wide .block-tree__canopy span:nth-child(2) {
+  grid-column: 3;
+}
+
+.block-tree--wide .block-tree__canopy span:nth-child(3) {
+  grid-column: 4;
+}
+
+.block-tree--wide .block-tree__canopy span:nth-child(4) {
+  grid-column: 3;
+  grid-row: 2;
+}
+
+.block-tree--wide .block-tree__canopy span:nth-child(5) {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.block-tree--wide .block-tree__canopy span:nth-child(6) {
+  grid-column: 4;
+  grid-row: 2;
+}
+
+.block-tree__trunk {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+.block-tree__trunk span {
+  width: 14px;
+  height: 14px;
+  background: var(--trunk);
+  box-shadow: inset -2px -2px 0 var(--trunk-dark);
+}
+
+.block-tree__trunk span:last-child {
+  background: var(--trunk-dark);
+}
+
+/* ── Grass ── */
+.blocky-grass {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 38%;
+  background: var(--grass-dark);
+}
+
+.blocky-grass__stripes {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    180deg,
+    var(--grass-mid) 0px,
+    var(--grass-mid) 20px,
+    var(--grass-dark) 20px,
+    var(--grass-dark) 40px,
+    var(--grass-light) 40px,
+    var(--grass-light) 52px,
+    var(--grass-mid) 52px,
+    var(--grass-mid) 72px
+  );
+}
+
+.blocky-grass__blocks {
+  position: absolute;
+  inset: 0;
+}
+
+.blocky-grass__block {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  background: var(--grass-bright);
+  box-shadow: inset -3px -3px 0 var(--grass-light);
+}
+
+.blocky-grass__block:nth-child(3n) {
+  background: var(--grass-light);
+  box-shadow: inset -3px -3px 0 var(--grass-mid);
+}
+
+.blocky-grass__block:nth-child(5n) {
+  background: var(--grass-dark);
+  box-shadow: inset -3px -3px 0 #143d1e;
+  width: 12px;
+  height: 12px;
+}
+
+.blocky-grass__foreground {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 48px;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--grass-bright) 0px,
+    var(--grass-bright) 16px,
+    var(--grass-light) 16px,
+    var(--grass-light) 32px,
+    var(--grass-mid) 32px,
+    var(--grass-mid) 48px
+  );
+  border-top: 4px solid var(--grass-dark);
+  box-shadow: 0 -8px 0 rgba(0, 0, 0, 0.15);
+}
+
+/* ── Title UI ── */
 .blocky-title {
   margin: 0;
   font-size: clamp(2rem, 8vw, 4.5rem);
@@ -92,4 +461,24 @@ body {
   font-size: 0.55rem;
   color: rgba(255, 255, 255, 0.55);
   letter-spacing: 0.08em;
+}
+
+@media (max-width: 480px) {
+  .block-tree--wide,
+  .block-tree:nth-child(5),
+  .block-tree:nth-child(6) {
+    opacity: 0.6;
+  }
+
+  .blocky-sun {
+    width: 40px;
+    height: 40px;
+    box-shadow:
+      6px 0 0 var(--sun),
+      -6px 0 0 var(--sun),
+      0 6px 0 var(--sun),
+      0 -6px 0 var(--sun),
+      6px 6px 0 var(--sun-shadow),
+      -6px 6px 0 var(--sun-shadow);
+  }
 }
