@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import CompactPixelSprite from "@/components/CompactPixelSprite";
 import PixelGrid from "@/components/PixelGrid";
 import {
   BLOCK_SIZE,
@@ -8,7 +9,6 @@ import {
   CRUST_ROWS,
   getSceneLayout,
   getTreeHeight,
-  getTreeWidth,
   SCENE_COLORS,
   TREE_A,
   TREE_B,
@@ -37,14 +37,12 @@ function useSceneLayout(): SceneLayout {
 type PixelTreeProps = {
   col: number;
   skyRows: number;
-  scale?: number;
   flip?: boolean;
 };
 
-function PixelTree({ col, skyRows, scale = 1, flip = false }: PixelTreeProps) {
+function PixelTree({ col, skyRows, flip = false }: PixelTreeProps) {
   const grid = flip ? TREE_B : TREE_A;
   const treeHeight = getTreeHeight(grid);
-  const treeWidth = getTreeWidth(grid);
 
   return (
     <div
@@ -52,12 +50,9 @@ function PixelTree({ col, skyRows, scale = 1, flip = false }: PixelTreeProps) {
       style={{
         left: col * BLOCK_SIZE,
         top: (skyRows - treeHeight) * BLOCK_SIZE,
-        width: treeWidth * BLOCK_SIZE,
-        transform: `scale(${scale})`,
-        transformOrigin: "bottom left",
       }}
     >
-      <PixelGrid grid={grid} colors={TREE_COLORS} transparentEmpty />
+      <CompactPixelSprite grid={grid} colors={TREE_COLORS} />
     </div>
   );
 }
@@ -83,11 +78,11 @@ export default function BlockyBackground() {
           className="scene-grid"
         />
 
-        <PixelTree col={2} skyRows={skyRows} scale={0.95} />
-        <PixelTree col={Math.floor(cols * 0.12)} skyRows={skyRows} scale={1.05} flip />
-        <PixelTree col={Math.floor(cols * 0.68)} skyRows={skyRows} scale={1} flip />
-        <PixelTree col={Math.floor(cols * 0.82)} skyRows={skyRows} scale={0.9} />
-        <PixelTree col={Math.floor(cols * 0.4)} skyRows={skyRows} scale={0.85} flip />
+        <PixelTree col={2} skyRows={skyRows} />
+        <PixelTree col={Math.floor(cols * 0.12)} skyRows={skyRows} flip />
+        <PixelTree col={Math.floor(cols * 0.68)} skyRows={skyRows} flip />
+        <PixelTree col={Math.floor(cols * 0.82)} skyRows={skyRows} />
+        <PixelTree col={Math.floor(cols * 0.4)} skyRows={skyRows} flip />
       </div>
     </div>
   );

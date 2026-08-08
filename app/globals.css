@@ -91,6 +91,22 @@ body {
   line-height: 0;
 }
 
+.compact-sprite {
+  position: relative;
+  line-height: 0;
+  font-size: 0;
+  image-rendering: pixelated;
+}
+
+.compact-sprite__cell {
+  position: absolute;
+  margin: 0;
+  padding: 0;
+  border: none;
+  outline: none;
+  line-height: 0;
+}
+
 /* ── Title UI ── */
 .blocky-title {
   margin: 0;

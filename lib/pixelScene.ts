@@ -32,17 +32,54 @@ export const TREE_COLORS: Record<number, string> = {
   5: "#3d2810",
 };
 
-/** Classic cumulus — flat base, billowing rounded top. */
-export const CUMULUS_SHAPE: number[][] = [
-  [0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0],
-  [0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0],
-  [0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0],
-  [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-];
+/** Build a puffy oval cumulus cloud with a flat bottom (not triangular). */
+export function buildCumulusShape(width = 23, height = 9): number[][] {
+  const shape: number[][] = [];
+  const centerX = (width - 1) / 2;
+  const flatRows = 2;
+  const domeBottom = height - flatRows;
+
+  for (let y = 0; y < height; y++) {
+    const row = Array<number>(width).fill(0);
+
+    if (y >= domeBottom) {
+      for (let x = 0; x < width; x++) {
+        row[x] = 1;
+      }
+      shape.push(row);
+      continue;
+    }
+
+    const radiusX = width / 2 - 1;
+    const radiusY = domeBottom - 0.5;
+
+    for (let x = 0; x < width; x++) {
+      const nx = (x - centerX) / radiusX;
+      const ny = (y - domeBottom) / radiusY;
+      if (nx * nx + ny * ny <= 1.08) {
+        row[x] = 1;
+      }
+    }
+
+    if (y <= 2) {
+      for (let x = 0; x < width; x++) {
+        for (const lobeCenter of [centerX - 5, centerX, centerX + 5]) {
+          const dx = x - lobeCenter;
+          const dy = y - 1.2;
+          if (dx * dx + dy * dy <= 5) {
+            row[x] = 1;
+          }
+        }
+      }
+    }
+
+    shape.push(row);
+  }
+
+  return shape;
+}
+
+export const CUMULUS_SHAPE = buildCumulusShape();
 
 /** Circular blocky sun — centered on glow. */
 export const SUN_SHAPE: number[][] = [
@@ -191,10 +228,7 @@ export function buildSceneGrid(layout: SceneLayout): number[][] {
   }
 
   const caves = [
-    { cx: cols * 0.2, cy: skyRows + 5, rx: cols * 0.07, ry: 2.5 },
-    { cx: cols * 0.5, cy: skyRows + 8, rx: cols * 0.09, ry: 3 },
-    { cx: cols * 0.78, cy: skyRows + 6, rx: cols * 0.06, ry: 2.5 },
-    { cx: cols * 0.35, cy: skyRows + 10, rx: cols * 0.08, ry: 2.8 },
+    { cx: cols * 0.48, cy: skyRows + 7, rx: Math.max(3, cols * 0.04), ry: 1.6 },
   ];
 
   for (let y = skyRows + 1; y < totalRows; y++) {
