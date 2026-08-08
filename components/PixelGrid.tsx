@@ -35,7 +35,11 @@ export default function PixelGrid({
             <span
               key={`${x}-${y}`}
               className="pixel-grid__cell"
-              style={{ backgroundColor: colors[cell] ?? "transparent" }}
+              style={{
+                width: BLOCK_SIZE,
+                height: BLOCK_SIZE,
+                backgroundColor: colors[cell] ?? "transparent",
+              }}
             />
           );
         }),

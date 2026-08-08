@@ -1,24 +1,27 @@
 /** Uniform block size used across the entire scene. */
 export const BLOCK_SIZE = 16;
+export const CRUST_ROWS = 12;
 
-export const SKY_COLORS: Record<number, string> = {
+/** All background block colors — one palette for the full grid. */
+export const SCENE_COLORS: Record<number, string> = {
   1: "#7ec8e8",
   2: "#b8e4f8",
-};
-
-export const CRUST_COLORS: Record<number, string> = {
-  1: "#4caf50",
-  2: "#3d8a3d",
-  3: "#8b6914",
-  4: "#6b4a2e",
-  5: "#5a4030",
-  6: "#3a3a42",
-  7: "#7a7a82",
-  8: "#2a2420",
-  9: "#141010",
-  10: "#3a3028",
-  11: "#b87333",
-  12: "#9aa0a8",
+  3: "#ffcc00",
+  4: "#ffe566",
+  5: "#ffffff",
+  10: "#4caf50",
+  11: "#3d9a45",
+  12: "#9a7030",
+  13: "#7a5535",
+  14: "#5c4030",
+  15: "#909098",
+  16: "#787880",
+  17: "#626268",
+  18: "#505058",
+  19: "#2e2e34",
+  20: "#8a9098",
+  21: "#b87333",
+  22: "#121010",
 };
 
 export const TREE_COLORS: Record<number, string> = {
@@ -29,112 +32,19 @@ export const TREE_COLORS: Record<number, string> = {
   5: "#3d2810",
 };
 
-export const SUN_COLORS: Record<number, string> = {
-  1: "#ffcc00",
-  2: "#ffe566",
-};
-
-export const CLOUD_COLORS: Record<number, string> = {
-  1: "#ffffff",
-};
-
-export function buildSkyGrid(
-  cols: number,
-  rows: number,
-  sunCol: number,
-  sunRow: number,
-): number[][] {
-  const glowRadius = 8;
-  const grid: number[][] = [];
-
-  for (let y = 0; y < rows; y++) {
-    const row: number[] = [];
-    for (let x = 0; x < cols; x++) {
-      const dist = Math.hypot(x - sunCol, y - sunRow);
-      row.push(dist < glowRadius ? 2 : 1);
-    }
-    grid.push(row);
-  }
-
-  return grid;
-}
-
-function inEllipse(x: number, y: number, cx: number, cy: number, rx: number, ry: number): boolean {
-  const dx = (x - cx) / rx;
-  const dy = (y - cy) / ry;
-  return dx * dx + dy * dy <= 1;
-}
-
-export function buildCrustGrid(cols: number, rows: number): number[][] {
-  const grid: number[][] = [];
-
-  for (let y = 0; y < rows; y++) {
-    const row: number[] = [];
-    for (let x = 0; x < cols; x++) {
-      if (y === 0) {
-        const bump = Math.sin(x * 0.55) * 2 + Math.cos(x * 0.25) * 1.5;
-        row.push(bump > 0.8 ? 1 : bump > -0.5 ? 2 : 0);
-        continue;
-      }
-
-      if (y === 1) {
-        row.push(x % 7 === 0 ? 3 : 4);
-        continue;
-      }
-
-      if (y < 4) {
-        row.push(x % 5 === 0 ? 3 : 4);
-        continue;
-      }
-
-      if (y < 8) {
-        const oreRoll = (x * 17 + y * 31) % 23;
-        if (oreRoll === 0) row.push(12);
-        else if (oreRoll === 1) row.push(11);
-        else if (oreRoll === 2) row.push(6);
-        else row.push(x % 4 === 0 ? 5 : 7);
-        continue;
-      }
-
-      const deepRoll = (x * 13 + y * 19) % 19;
-      if (deepRoll === 0) row.push(12);
-      else if (deepRoll === 1) row.push(11);
-      else row.push(x % 3 === 0 ? 8 : 10);
-    }
-    grid.push(row);
-  }
-
-  const caves = [
-    { cx: cols * 0.22, cy: 5, rx: cols * 0.08, ry: 2.5 },
-    { cx: cols * 0.55, cy: 8, rx: cols * 0.1, ry: 3 },
-    { cx: cols * 0.78, cy: 6, rx: cols * 0.07, ry: 2.5 },
-    { cx: cols * 0.4, cy: 10, rx: cols * 0.09, ry: 2.8 },
-  ];
-
-  for (let y = 1; y < rows; y++) {
-    for (let x = 0; x < cols; x++) {
-      for (const cave of caves) {
-        if (inEllipse(x, y, cave.cx, cave.cy, cave.rx, cave.ry)) {
-          grid[y][x] = 9;
-        }
-      }
-    }
-  }
-
-  return grid;
-}
-
-/** Flat-bottom puffy cloud — single white color, round bumps on top. */
-export const CLOUD_SHAPE: number[][] = [
-  [0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0],
-  [0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0],
-  [0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0],
-  [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+/** Classic cumulus — flat base, billowing rounded top. */
+export const CUMULUS_SHAPE: number[][] = [
+  [0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0],
+  [0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0],
+  [0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0],
+  [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
 ];
 
-/** Circular blocky sun — yellow with brighter yellow center, no rays. */
+/** Circular blocky sun — centered on glow. */
 export const SUN_SHAPE: number[][] = [
   [0, 0, 0, 1, 1, 1, 0, 0, 0],
   [0, 0, 1, 1, 1, 1, 1, 0, 0],
@@ -180,4 +90,140 @@ export const TREE_B: number[][] = [
   [0, 0, 0, 0, 5, 5, 5, 0, 0, 0, 0],
 ];
 
-export const CRUST_ROWS = 12;
+export type SceneLayout = {
+  cols: number;
+  skyRows: number;
+  sunCol: number;
+  sunRow: number;
+};
+
+function inEllipse(x: number, y: number, cx: number, cy: number, rx: number, ry: number): boolean {
+  const dx = (x - cx) / rx;
+  const dy = (y - cy) / ry;
+  return dx * dx + dy * dy <= 1;
+}
+
+function stampShape(
+  grid: number[][],
+  startCol: number,
+  startRow: number,
+  shape: number[][],
+  mapValue: (value: number) => number,
+): void {
+  for (let y = 0; y < shape.length; y++) {
+    for (let x = 0; x < shape[y].length; x++) {
+      const value = shape[y][x];
+      if (value === 0) continue;
+
+      const targetY = startRow + y;
+      const targetX = startCol + x;
+
+      if (
+        targetY >= 0 &&
+        targetY < grid.length &&
+        targetX >= 0 &&
+        targetX < grid[0].length
+      ) {
+        grid[targetY][targetX] = mapValue(value);
+      }
+    }
+  }
+}
+
+function crustBlock(x: number, crustY: number): number {
+  if (crustY === 0) {
+    return (x + crustY) % 4 === 0 ? 11 : 10;
+  }
+
+  if (crustY <= 3) {
+    const noise = (x * 13 + crustY * 7) % 10;
+    if (noise < 3) return 12;
+    if (noise < 7) return 13;
+    return 14;
+  }
+
+  const noise = (x * 17 + crustY * 23) % 31;
+  if (noise === 0) return 19;
+  if (noise === 1) return 21;
+  if (noise === 2) return 20;
+  if (noise < 9) return 15;
+  if (noise < 18) return 16;
+  if (noise < 25) return 17;
+  return 18;
+}
+
+export function buildSceneGrid(layout: SceneLayout): number[][] {
+  const { cols, skyRows, sunCol, sunRow } = layout;
+  const totalRows = skyRows + CRUST_ROWS;
+  const glowRadius = 11;
+  const sunOffsetCol = sunCol - Math.floor(SUN_SHAPE[0].length / 2);
+  const sunOffsetRow = sunRow - Math.floor(SUN_SHAPE.length / 2);
+
+  const grid: number[][] = [];
+
+  for (let y = 0; y < totalRows; y++) {
+    const row: number[] = [];
+
+    for (let x = 0; x < cols; x++) {
+      if (y >= skyRows) {
+        row.push(crustBlock(x, y - skyRows));
+        continue;
+      }
+
+      const dist = Math.hypot(x - sunCol, y - sunRow);
+      row.push(dist <= glowRadius ? 2 : 1);
+    }
+
+    grid.push(row);
+  }
+
+  stampShape(grid, sunOffsetCol, sunOffsetRow, SUN_SHAPE, (value) => (value === 2 ? 4 : 3));
+
+  const cloudPlacements = [
+    { col: 3, row: 2 },
+    { col: Math.floor(cols * 0.28), row: 4 },
+    { col: Math.floor(cols * 0.52), row: 2 },
+    { col: Math.floor(cols * 0.72), row: 5 },
+  ];
+
+  for (const cloud of cloudPlacements) {
+    stampShape(grid, cloud.col, cloud.row, CUMULUS_SHAPE, () => 5);
+  }
+
+  const caves = [
+    { cx: cols * 0.2, cy: skyRows + 5, rx: cols * 0.07, ry: 2.5 },
+    { cx: cols * 0.5, cy: skyRows + 8, rx: cols * 0.09, ry: 3 },
+    { cx: cols * 0.78, cy: skyRows + 6, rx: cols * 0.06, ry: 2.5 },
+    { cx: cols * 0.35, cy: skyRows + 10, rx: cols * 0.08, ry: 2.8 },
+  ];
+
+  for (let y = skyRows + 1; y < totalRows; y++) {
+    for (let x = 0; x < cols; x++) {
+      for (const cave of caves) {
+        if (inEllipse(x, y, cave.cx, cave.cy, cave.rx, cave.ry)) {
+          grid[y][x] = 22;
+        }
+      }
+    }
+  }
+
+  return grid;
+}
+
+export function getSceneLayout(viewportWidth: number, viewportHeight: number): SceneLayout {
+  const cols = Math.max(24, Math.ceil(viewportWidth / BLOCK_SIZE));
+  const totalRows = Math.max(CRUST_ROWS + 14, Math.ceil(viewportHeight / BLOCK_SIZE));
+  const skyRows = totalRows - CRUST_ROWS;
+  const sunCol = Math.floor(cols * 0.72);
+  const sunRow = Math.floor(skyRows * 0.24);
+
+  return { cols, skyRows, sunCol, sunRow };
+}
+
+export function getTreeHeight(grid: number[][]): number {
+  return grid.length;
+}
+
+export function getTreeWidth(grid: number[][]): number {
+  return grid[0]?.length ?? 0;
+}

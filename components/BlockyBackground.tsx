@@ -4,30 +4,26 @@ import { useEffect, useMemo, useState } from "react";
 import PixelGrid from "@/components/PixelGrid";
 import {
   BLOCK_SIZE,
-  buildCrustGrid,
-  buildSkyGrid,
-  CLOUD_COLORS,
-  CLOUD_SHAPE,
-  CRUST_COLORS,
+  buildSceneGrid,
   CRUST_ROWS,
-  SKY_COLORS,
-  SUN_COLORS,
-  SUN_SHAPE,
+  getSceneLayout,
+  getTreeHeight,
+  getTreeWidth,
+  SCENE_COLORS,
   TREE_A,
   TREE_B,
   TREE_COLORS,
+  type SceneLayout,
 } from "@/lib/pixelScene";
 
-function useSceneSize(): { cols: number; skyRows: number; sunCol: number; sunRow: number } {
-  const [size, setSize] = useState({ cols: 48, skyRows: 18, sunCol: 38, sunRow: 3 });
+function useSceneLayout(): SceneLayout {
+  const [layout, setLayout] = useState<SceneLayout>(() =>
+    getSceneLayout(1200, 800),
+  );
 
   useEffect(() => {
     const update = () => {
-      const cols = Math.max(24, Math.ceil(window.innerWidth / BLOCK_SIZE));
-      const skyRows = Math.max(14, Math.floor((window.innerHeight * 0.62) / BLOCK_SIZE));
-      const sunCol = cols - 10;
-      const sunRow = 3;
-      setSize({ cols, skyRows, sunCol, sunRow });
+      setLayout(getSceneLayout(window.innerWidth, window.innerHeight));
     };
 
     update();
@@ -35,25 +31,30 @@ function useSceneSize(): { cols: number; skyRows: number; sunCol: number; sunRow
     return () => window.removeEventListener("resize", update);
   }, []);
 
-  return size;
+  return layout;
 }
 
 type PixelTreeProps = {
-  left: string;
+  col: number;
+  skyRows: number;
   scale?: number;
   flip?: boolean;
 };
 
-function PixelTree({ left, scale = 1, flip = false }: PixelTreeProps) {
+function PixelTree({ col, skyRows, scale = 1, flip = false }: PixelTreeProps) {
   const grid = flip ? TREE_B : TREE_A;
+  const treeHeight = getTreeHeight(grid);
+  const treeWidth = getTreeWidth(grid);
 
   return (
     <div
       className="scene-tree"
       style={{
-        left,
+        left: col * BLOCK_SIZE,
+        top: (skyRows - treeHeight) * BLOCK_SIZE,
+        width: treeWidth * BLOCK_SIZE,
         transform: `scale(${scale})`,
-        transformOrigin: "bottom center",
+        transformOrigin: "bottom left",
       }}
     >
       <PixelGrid grid={grid} colors={TREE_COLORS} transparentEmpty />
@@ -61,60 +62,32 @@ function PixelTree({ left, scale = 1, flip = false }: PixelTreeProps) {
   );
 }
 
-function BlockCloud({ top, left, scale = 1 }: { top: string; left: string; scale?: number }) {
-  return (
-    <div className="scene-cloud" style={{ top, left, transform: `scale(${scale})` }}>
-      <PixelGrid grid={CLOUD_SHAPE} colors={CLOUD_COLORS} transparentEmpty />
-    </div>
-  );
-}
-
-function BlockSun({ col, row }: { col: number; row: number }) {
-  return (
-    <div
-      className="scene-sun"
-      style={{
-        left: col * BLOCK_SIZE,
-        top: row * BLOCK_SIZE,
-      }}
-    >
-      <PixelGrid grid={SUN_SHAPE} colors={SUN_COLORS} transparentEmpty />
-    </div>
-  );
-}
-
 export default function BlockyBackground() {
-  const { cols, skyRows, sunCol, sunRow } = useSceneSize();
-  const skyGrid = useMemo(() => buildSkyGrid(cols, skyRows, sunCol, sunRow), [cols, skyRows, sunCol, sunRow]);
-  const crustGrid = useMemo(() => buildCrustGrid(cols, CRUST_ROWS), [cols]);
-  const crustHeight = CRUST_ROWS * BLOCK_SIZE;
+  const layout = useSceneLayout();
+  const sceneGrid = useMemo(() => buildSceneGrid(layout), [layout]);
+  const { cols, skyRows } = layout;
 
   return (
     <div className="blocky-scene" aria-hidden="true">
-      <div className="blocky-sky" style={{ bottom: crustHeight }}>
+      <div
+        className="scene-grid-wrap"
+        style={{
+          width: cols * BLOCK_SIZE,
+          height: (skyRows + CRUST_ROWS) * BLOCK_SIZE,
+        }}
+      >
         <PixelGrid
-          grid={skyGrid}
-          colors={SKY_COLORS}
+          grid={sceneGrid}
+          colors={SCENE_COLORS}
           transparentEmpty={false}
-          className="blocky-sky__grid"
+          className="scene-grid"
         />
-        <BlockCloud top="10%" left="4%" scale={1.1} />
-        <BlockCloud top="18%" left="48%" scale={1} />
-        <BlockCloud top="6%" left="28%" scale={0.95} />
-        <BlockCloud top="24%" left="72%" scale={0.85} />
-        <BlockSun col={sunCol} row={sunRow} />
-      </div>
 
-      <div className="crust-cross" style={{ height: crustHeight }}>
-        <PixelGrid grid={crustGrid} colors={CRUST_COLORS} transparentEmpty />
-      </div>
-
-      <div className="blocky-trees" style={{ bottom: crustHeight - BLOCK_SIZE }}>
-        <PixelTree left="3%" scale={0.95} />
-        <PixelTree left="15%" scale={1.05} flip />
-        <PixelTree left="72%" scale={1} flip />
-        <PixelTree left="86%" scale={0.9} />
-        <PixelTree left="42%" scale={0.85} flip />
+        <PixelTree col={2} skyRows={skyRows} scale={0.95} />
+        <PixelTree col={Math.floor(cols * 0.12)} skyRows={skyRows} scale={1.05} flip />
+        <PixelTree col={Math.floor(cols * 0.68)} skyRows={skyRows} scale={1} flip />
+        <PixelTree col={Math.floor(cols * 0.82)} skyRows={skyRows} scale={0.9} />
+        <PixelTree col={Math.floor(cols * 0.4)} skyRows={skyRows} scale={0.85} flip />
       </div>
     </div>
   );
