@@ -86,3 +86,10 @@ body {
   outline: 3px solid #fff;
   outline-offset: 4px;
 }
+
+.title-screen__version {
+  margin: -1.5rem 0 0;
+  font-size: 0.55rem;
+  color: rgba(255, 255, 255, 0.55);
+  letter-spacing: 0.08em;
+}

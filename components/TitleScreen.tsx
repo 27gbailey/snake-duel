@@ -11,6 +11,7 @@ export default function TitleScreen() {
       <button type="button" className="start-button">
         Start
       </button>
+      <p className="title-screen__version">Create Earth · v1</p>
     </main>
   );
 }
