@@ -1,1 +1,1 @@
-export const APP_VERSION = "create-earth-v7";
+export const APP_VERSION = "create-earth-v8";
