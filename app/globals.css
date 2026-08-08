@@ -18,7 +18,7 @@ body {
 
 body {
   font-family: var(--font-block), monospace;
-  background: #061835;
+  background: #7ec8e8;
   color: #fff;
   overflow-x: hidden;
 }
@@ -72,7 +72,6 @@ body {
 .blocky-sky {
   position: absolute;
   inset: 0;
-  bottom: 120px;
   overflow: hidden;
 }
 
@@ -82,15 +81,11 @@ body {
 
 .scene-sun {
   position: absolute;
-  top: 8%;
-  right: 8%;
-  filter: drop-shadow(0 0 12px rgba(255, 200, 60, 0.45));
 }
 
 .scene-cloud {
   position: absolute;
   transform-origin: top left;
-  filter: drop-shadow(4px 4px 0 rgba(0, 0, 0, 0.06));
 }
 
 /* ── Crust cross-section ── */
@@ -184,10 +179,6 @@ body {
 }
 
 @media (max-width: 640px) {
-  .blocky-sky {
-    bottom: 100px;
-  }
-
   .scene-tree:nth-child(5) {
     opacity: 0.55;
   }
