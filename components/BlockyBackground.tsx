@@ -1,161 +1,114 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import PixelGrid from "@/components/PixelGrid";
+import {
+  BLOCK_SIZE,
+  buildCrustGrid,
+  buildSkyGrid,
+  CLOUD_COLORS,
+  CLOUD_SHAPE,
+  CRUST_COLORS,
+  CRUST_ROWS,
+  SKY_COLORS,
+  SUN_COLORS,
+  SUN_SHAPE,
+  TREE_A,
+  TREE_B,
+  TREE_COLORS,
+  upscaleGrid,
+} from "@/lib/pixelScene";
+
+function useSceneSize(): { cols: number; skyRows: number } {
+  const [size, setSize] = useState({ cols: 80, skyRows: 32 });
+
+  useEffect(() => {
+    const update = () => {
+      const cols = Math.max(40, Math.ceil(window.innerWidth / BLOCK_SIZE));
+      const skyRows = Math.max(28, Math.floor((window.innerHeight * 0.58) / BLOCK_SIZE));
+      setSize({ cols, skyRows });
+    };
+
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
+  return size;
+}
+
 type PixelTreeProps = {
   left: string;
-  bottom: string;
   scale?: number;
   flip?: boolean;
 };
 
-/** Pixel art tree — 0 = empty, colors map to leaf/trunk shades without grid gaps. */
-const TREE_A: number[][] = [
-  [0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0],
-  [0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0],
-  [0, 0, 1, 1, 2, 2, 2, 1, 1, 0, 0, 0],
-  [0, 1, 1, 2, 2, 3, 2, 2, 1, 1, 0, 0],
-  [0, 1, 2, 2, 3, 3, 3, 2, 2, 1, 0, 0],
-  [1, 1, 2, 3, 3, 3, 3, 3, 2, 1, 1, 0],
-  [0, 1, 2, 2, 3, 3, 3, 2, 2, 1, 0, 0],
-  [0, 0, 1, 2, 2, 2, 2, 2, 1, 0, 0, 0],
-  [0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0],
-  [0, 0, 0, 0, 4, 4, 4, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 4, 5, 4, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 4, 5, 4, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 5, 5, 5, 0, 0, 0, 0, 0],
-];
-
-const TREE_B: number[][] = [
-  [0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0],
-  [0, 0, 1, 1, 2, 2, 2, 1, 1, 0, 0],
-  [0, 1, 1, 2, 2, 3, 2, 2, 1, 1, 0],
-  [0, 1, 2, 2, 3, 3, 3, 2, 2, 1, 0],
-  [1, 1, 2, 3, 3, 3, 3, 3, 2, 1, 1],
-  [1, 2, 2, 3, 3, 3, 3, 3, 2, 2, 1],
-  [0, 1, 2, 2, 3, 3, 3, 2, 2, 1, 0],
-  [0, 0, 1, 2, 2, 2, 2, 2, 1, 0, 0],
-  [0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0],
-  [0, 0, 0, 0, 4, 4, 4, 0, 0, 0, 0],
-  [0, 0, 0, 0, 4, 5, 4, 0, 0, 0, 0],
-  [0, 0, 0, 0, 4, 5, 4, 0, 0, 0, 0],
-  [0, 0, 0, 0, 5, 5, 5, 0, 0, 0, 0],
-  [0, 0, 0, 0, 5, 5, 5, 0, 0, 0, 0],
-];
-
-const TREE_COLORS: Record<number, string> = {
-  1: "#1a5c2e",
-  2: "#268542",
-  3: "#3cb356",
-  4: "#5c3d1e",
-  5: "#3d2810",
-};
-
-function PixelTree({ left, bottom, scale = 1, flip = false }: PixelTreeProps) {
-  const grid = flip ? TREE_B : TREE_A;
-  const pixel = 10;
+function PixelTree({ left, scale = 1, flip = false }: PixelTreeProps) {
+  const base = flip ? TREE_B : TREE_A;
+  const grid = useMemo(() => upscaleGrid(base, 2), [base]);
 
   return (
     <div
-      className="pixel-tree"
+      className="scene-tree"
       style={{
         left,
-        bottom,
         transform: `scale(${scale})`,
         transformOrigin: "bottom center",
       }}
     >
-      <div
-        className="pixel-tree__grid"
-        style={{
-          gridTemplateColumns: `repeat(${grid[0].length}, ${pixel}px)`,
-          gridTemplateRows: `repeat(${grid.length}, ${pixel}px)`,
-        }}
-      >
-        {grid.flatMap((row, y) =>
-          row.map((cell, x) =>
-            cell === 0 ? (
-              <span key={`${x}-${y}`} className="pixel-tree__empty" />
-            ) : (
-              <span
-                key={`${x}-${y}`}
-                className="pixel-tree__cell"
-                style={{ backgroundColor: TREE_COLORS[cell] }}
-              />
-            ),
-          ),
-        )}
-      </div>
-    </div>
-  );
-}
-
-function BlockSun() {
-  return (
-    <div className="block-sun">
-      <div className="block-sun__rays" />
-      <div className="block-sun__corona" />
-      <div className="block-sun__body">
-        <span className="block-sun__highlight" />
-      </div>
+      <PixelGrid grid={grid} colors={TREE_COLORS} transparentEmpty />
     </div>
   );
 }
 
 function BlockCloud({ top, left, scale = 1 }: { top: string; left: string; scale?: number }) {
   return (
-    <div className="block-cloud-v2" style={{ top, left, transform: `scale(${scale})` }}>
-      <div className="block-cloud-v2__puff block-cloud-v2__puff--back" />
-      <div className="block-cloud-v2__puff block-cloud-v2__puff--mid" />
-      <div className="block-cloud-v2__puff block-cloud-v2__puff--front" />
+    <div className="scene-cloud" style={{ top, left, transform: `scale(${scale})` }}>
+      <PixelGrid grid={CLOUD_SHAPE} colors={CLOUD_COLORS} transparentEmpty />
     </div>
   );
 }
 
-function EarthCrossSection() {
+function BlockSun() {
   return (
-    <div className="earth-cross">
-      <div className="earth-cross__surface">
-        <div className="earth-cross__surface-grass" />
-        <div className="earth-cross__surface-cut" />
-      </div>
-      <div className="earth-cross__layer earth-cross__layer--crust">
-        <span className="earth-cross__label">Crust</span>
-      </div>
-      <div className="earth-cross__layer earth-cross__layer--upper-mantle">
-        <span className="earth-cross__label">Upper Mantle</span>
-      </div>
-      <div className="earth-cross__layer earth-cross__layer--lower-mantle">
-        <span className="earth-cross__label">Lower Mantle</span>
-      </div>
-      <div className="earth-cross__layer earth-cross__layer--outer-core">
-        <span className="earth-cross__label">Outer Core</span>
-      </div>
-      <div className="earth-cross__layer earth-cross__layer--inner-core">
-        <div className="earth-cross__core-glow" />
-        <span className="earth-cross__label earth-cross__label--core">Inner Core</span>
-      </div>
+    <div className="scene-sun">
+      <PixelGrid grid={SUN_SHAPE} colors={SUN_COLORS} transparentEmpty />
     </div>
   );
 }
 
 export default function BlockyBackground() {
+  const { cols, skyRows } = useSceneSize();
+  const skyGrid = useMemo(() => buildSkyGrid(cols, skyRows), [cols, skyRows]);
+  const crustGrid = useMemo(() => buildCrustGrid(cols, CRUST_ROWS), [cols]);
+  const crustHeight = CRUST_ROWS * BLOCK_SIZE;
+
   return (
     <div className="blocky-scene" aria-hidden="true">
       <div className="blocky-sky">
-        <div className="blocky-sky__gradient" />
-        <div className="blocky-sky__haze" />
-        <BlockCloud top="10%" left="6%" scale={1.15} />
-        <BlockCloud top="16%" left="55%" scale={1} />
-        <BlockCloud top="6%" left="32%" scale={0.85} />
-        <BlockCloud top="22%" left="78%" scale={0.7} />
+        <PixelGrid
+          grid={skyGrid}
+          colors={SKY_COLORS}
+          transparentEmpty={false}
+          className="blocky-sky__grid"
+        />
+        <BlockCloud top="8%" left="5%" scale={1.2} />
+        <BlockCloud top="14%" left="52%" scale={1} />
+        <BlockCloud top="5%" left="30%" scale={0.9} />
+        <BlockCloud top="20%" left="76%" scale={0.75} />
         <BlockSun />
       </div>
 
-      <EarthCrossSection />
+      <div className="crust-cross" style={{ height: crustHeight }}>
+        <PixelGrid grid={crustGrid} colors={CRUST_COLORS} transparentEmpty />
+      </div>
 
-      <div className="blocky-trees">
-        <PixelTree left="2%" bottom="42%" scale={2.2} />
-        <PixelTree left="16%" bottom="42%" scale={2.6} flip />
-        <PixelTree left="72%" bottom="42%" scale={2.4} flip />
-        <PixelTree left="86%" bottom="42%" scale={2.1} />
-        <PixelTree left="42%" bottom="42%" scale={1.8} flip />
+      <div className="blocky-trees" style={{ bottom: crustHeight - BLOCK_SIZE }}>
+        <PixelTree left="2%" scale={2.2} />
+        <PixelTree left="14%" scale={2.6} flip />
+        <PixelTree left="70%" scale={2.4} flip />
+        <PixelTree left="84%" scale={2.1} />
+        <PixelTree left="40%" scale={1.8} flip />
       </div>
     </div>
   );
