@@ -48,11 +48,19 @@ body {
   overflow: hidden;
 }
 
+.blocky-scene--interactive {
+  pointer-events: auto;
+}
+
 .scene-grid-wrap {
   position: absolute;
   left: 0;
   bottom: 0;
   overflow: hidden;
+}
+
+.scene-grid-wrap--interactive {
+  cursor: crosshair;
 }
 
 .pixel-grid {
@@ -89,6 +97,17 @@ body {
   position: absolute;
   z-index: 5;
   line-height: 0;
+}
+
+.placed-block {
+  position: absolute;
+  z-index: 4;
+  margin: 0;
+  padding: 0;
+  border: none;
+  outline: none;
+  image-rendering: pixelated;
+  pointer-events: none;
 }
 
 .compact-sprite {
@@ -230,12 +249,22 @@ body {
 }
 
 .block-menu__section {
+  display: block;
+  width: 100%;
+  border: none;
   border-bottom: 3px solid #000;
   padding: 0.85rem 1rem;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
 }
 
 .block-menu__section:last-child {
   border-bottom: none;
+}
+
+.block-menu__section--selected {
+  background: #000;
 }
 
 .block-menu__label {
@@ -246,6 +275,10 @@ body {
   font-weight: 400;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+}
+
+.block-menu__section--selected .block-menu__label {
+  color: #fff;
 }
 
 @media (max-width: 640px) {

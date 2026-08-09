@@ -200,3 +200,62 @@ export function getTreeHeight(grid: number[][]): number {
 export function getTreeWidth(grid: number[][]): number {
   return grid[0]?.length ?? 0;
 }
+
+export type TreePlacement = {
+  col: number;
+  grid: number[][];
+};
+
+export function getTreePlacements(cols: number, skyRows: number): TreePlacement[] {
+  return [
+    { col: 2, grid: TREE_A },
+    { col: Math.floor(cols * 0.12), grid: TREE_B },
+    { col: Math.floor(cols * 0.68), grid: TREE_B },
+    { col: Math.floor(cols * 0.82), grid: TREE_A },
+    { col: Math.floor(cols * 0.4), grid: TREE_B },
+  ];
+}
+
+export function isTreeAt(
+  col: number,
+  row: number,
+  cols: number,
+  skyRows: number,
+): boolean {
+  for (const tree of getTreePlacements(cols, skyRows)) {
+    const treeTop = skyRows - tree.grid.length;
+    const localCol = col - tree.col;
+    const localRow = row - treeTop;
+
+    if (
+      localCol >= 0 &&
+      localCol < tree.grid[0].length &&
+      localRow >= 0 &&
+      localRow < tree.grid.length &&
+      tree.grid[localRow][localCol] !== 0
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/** Sky glow, sky blue, and sun cells can be built on. */
+export function isPlaceableSkyCell(
+  grid: number[][],
+  col: number,
+  row: number,
+  layout: SceneLayout,
+): boolean {
+  if (row < 0 || row >= layout.skyRows || col < 0 || col >= layout.cols) {
+    return false;
+  }
+
+  const cell = grid[row][col];
+  if (cell !== 1 && cell !== 2 && cell !== 3 && cell !== 4) {
+    return false;
+  }
+
+  return !isTreeAt(col, row, layout.cols, layout.skyRows);
+}
